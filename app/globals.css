@@ -1,0 +1,108 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Definition of the design system. All colors, gradients, fonts, etc should be defined here. 
+All colors MUST be HSL.
+*/
+
+@layer base {
+  :root {
+    /* Brand palette in HSL (converted from provided hex) */
+    --brand-raisin: 227 11% 16%; /* #25272E */
+    --brand-isabelline: 30 44% 96%; /* #FAF6F2 */
+    --brand-hookers: 163 27% 32%; /* #3C695C */
+    --brand-persian: 25 74% 57%; /* #E28441 */
+
+    /* Core semantic tokens */
+    --background: var(--brand-isabelline);
+    --foreground: var(--brand-raisin);
+
+    --card: var(--brand-isabelline);
+    --card-foreground: var(--brand-raisin);
+
+    --popover: var(--brand-isabelline);
+    --popover-foreground: var(--brand-raisin);
+
+    --primary: var(--brand-persian);
+    --primary-foreground: 0 0% 100%;
+
+    /* Subtle surfaces using sand/green tints */
+    --secondary: 163 24% 92%;
+    --secondary-foreground: var(--brand-hookers);
+
+    --muted: 30 20% 94%;
+    --muted-foreground: 227 10% 40%;
+
+    --accent: var(--brand-hookers);
+    --accent-foreground: var(--brand-isabelline);
+
+    --destructive: 0 72% 52%;
+    --destructive-foreground: 0 0% 98%;
+
+    --border: 27 20% 85%;
+    --input: 27 20% 85%;
+    --ring: var(--brand-persian);
+
+    --radius: 0.75rem;
+
+    /* Sidebar */
+    --sidebar-background: 30 44% 97%;
+    --sidebar-foreground: var(--brand-raisin);
+    --sidebar-primary: var(--brand-persian);
+    --sidebar-primary-foreground: 0 0% 100%;
+    --sidebar-accent: 30 32% 92%;
+    --sidebar-accent-foreground: var(--brand-raisin);
+    --sidebar-border: 27 20% 85%;
+    --sidebar-ring: var(--brand-persian);
+  }
+
+  .dark {
+    --background: var(--brand-raisin);
+    --foreground: var(--brand-isabelline);
+
+    --card: 227 12% 18%;
+    --card-foreground: var(--brand-isabelline);
+
+    --popover: 227 12% 18%;
+    --popover-foreground: var(--brand-isabelline);
+
+    --primary: var(--brand-persian);
+    --primary-foreground: 0 0% 100%;
+
+    --secondary: 163 24% 22%;
+    --secondary-foreground: var(--brand-isabelline);
+
+    --muted: 227 12% 22%;
+    --muted-foreground: 30 30% 85%;
+
+    --accent: var(--brand-hookers);
+    --accent-foreground: var(--brand-isabelline);
+
+    --destructive: 0 62% 40%;
+    --destructive-foreground: 0 0% 100%;
+
+    --border: 227 12% 26%;
+    --input: 227 12% 26%;
+    --ring: var(--brand-persian);
+
+    --sidebar-background: 227 11% 16%;
+    --sidebar-foreground: var(--brand-isabelline);
+    --sidebar-primary: var(--brand-persian);
+    --sidebar-primary-foreground: 0 0% 100%;
+    --sidebar-accent: 227 12% 20%;
+    --sidebar-accent-foreground: var(--brand-isabelline);
+    --sidebar-border: 227 12% 22%;
+    --sidebar-ring: var(--brand-persian);
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+
+  body {
+    @apply bg-background text-foreground;
+  }
+}
