@@ -8,23 +8,23 @@ This application requires a PostgreSQL database for authentication and core func
 
 1. Install PostgreSQL locally
 2. Create a database:
-   ```sql
+   \`\`\`sql
    CREATE DATABASE spruce_kitchen;
-   ```
+   \`\`\`
 3. Set environment variable:
-   ```bash
+   \`\`\`bash
    export DATABASE_URL="postgresql://username:password@localhost:5432/spruce_kitchen"
-   ```
+   \`\`\`
 
 ### Option 2: Docker PostgreSQL
 
-```bash
+\`\`\`bash
 # Start PostgreSQL container
 docker run --name spruce-db -e POSTGRES_DB=spruce_kitchen -e POSTGRES_PASSWORD=password -p 5432:5432 -d postgres:15
 
 # Set environment variable
 export DATABASE_URL="postgresql://postgres:password@localhost:5432/spruce_kitchen"
-```
+\`\`\`
 
 ### Option 3: Cloud Database (Recommended for Development)
 
@@ -32,24 +32,24 @@ export DATABASE_URL="postgresql://postgres:password@localhost:5432/spruce_kitche
 1. Sign up at [neon.tech](https://neon.tech)
 2. Create a new project
 3. Copy the connection string and set:
-   ```bash
+   \`\`\`bash
    export DATABASE_URL="your_neon_connection_string"
-   ```
+   \`\`\`
 
 **Supabase (Free tier)**:
 1. Sign up at [supabase.com](https://supabase.com)
 2. Create a new project
 3. Go to Settings > Database and copy the connection string
 4. Set environment variable:
-   ```bash
+   \`\`\`bash
    export DATABASE_URL="your_supabase_connection_string"
-   ```
+   \`\`\`
 
 ## Environment Variables
 
 Create a `.env.local` file in your project root:
 
-```bash
+\`\`\`bash
 # Required for authentication
 DATABASE_URL="your_database_connection_string"
 
@@ -65,17 +65,17 @@ GOOGLE_CLIENT_ID="your_google_client_id"
 GOOGLE_CLIENT_SECRET="your_google_client_secret"
 FACEBOOK_CLIENT_ID="your_facebook_client_id"
 FACEBOOK_CLIENT_SECRET="your_facebook_client_secret"
-```
+\`\`\`
 
 ## Database Migration
 
 After setting up your database:
 
-```bash
+\`\`\`bash
 # Generate and run migrations
 npx drizzle-kit generate
 npx drizzle-kit migrate
-```
+\`\`\`
 
 ## Security Notes
 

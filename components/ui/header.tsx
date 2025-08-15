@@ -90,12 +90,12 @@ export const Header = () => {
                   </Link>
                 </Button>
                 <Button asChild size="sm" className={cn(isScrolled && "lg:hidden")}>
-                  <Link href="/onboarding">
+                  <Link href="/order">
                     <span>Order Now</span>
                   </Link>
                 </Button>
                 <Button asChild size="sm" className={cn(isScrolled ? "lg:inline-flex" : "hidden")}>
-                  <Link href="/onboarding">
+                  <Link href="/order">
                     <span>Order Now</span>
                   </Link>
                 </Button>

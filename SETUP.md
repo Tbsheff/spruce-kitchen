@@ -3,27 +3,27 @@
 ## Quick Start
 
 1. **Clone and Install**
-   ```bash
+   \`\`\`bash
    git clone <repository-url>
    cd spruce-kitchen
    npm install
-   ```
+   \`\`\`
 
 2. **Environment Setup**
-   ```bash
+   \`\`\`bash
    cp .env.example .env.local
-   ```
+   \`\`\`
 
 3. **Configure Required Variables**
    Edit `.env.local` and set these required variables:
-   ```env
+   \`\`\`env
    DATABASE_URL="postgresql://username:password@localhost:5432/spruce_kitchen"
    BETTER_AUTH_SECRET="your-32-char-secret-here"
    BETTER_AUTH_URL="http://localhost:3000"
-   ```
+   \`\`\`
 
 4. **Database Setup**
-   ```bash
+   \`\`\`bash
    # Create database
    createdb spruce_kitchen
    
@@ -35,12 +35,12 @@
    
    # Seed database with test data (optional)
    npm run db:seed
-   ```
+   \`\`\`
 
 5. **Start Development Server**
-   ```bash
+   \`\`\`bash
    npm run dev
-   ```
+   \`\`\`
 
 ## Required Environment Variables
 
@@ -78,7 +78,7 @@
 ## Database Setup Options
 
 ### Option 1: Local PostgreSQL
-```bash
+\`\`\`bash
 # Install PostgreSQL (macOS)
 brew install postgresql
 brew services start postgresql
@@ -88,10 +88,10 @@ createdb spruce_kitchen
 
 # Set DATABASE_URL
 DATABASE_URL="postgresql://$(whoami)@localhost:5432/spruce_kitchen"
-```
+\`\`\`
 
 ### Option 2: Docker PostgreSQL
-```bash
+\`\`\`bash
 # Run PostgreSQL in Docker
 docker run --name spruce-postgres \
   -e POSTGRES_DB=spruce_kitchen \
@@ -102,7 +102,7 @@ docker run --name spruce-postgres \
 
 # Set DATABASE_URL
 DATABASE_URL="postgresql://spruce:password@localhost:5432/spruce_kitchen"
-```
+\`\`\`
 
 ### Option 3: Cloud Database
 Use any PostgreSQL cloud provider:
@@ -114,21 +114,21 @@ Use any PostgreSQL cloud provider:
 ## Security Configuration
 
 ### Generate Secure Secrets
-```bash
+\`\`\`bash
 # Generate BETTER_AUTH_SECRET
 openssl rand -base64 32
 
 # Or use Node.js
 node -e "console.log(require('crypto').randomBytes(32).toString('base64'))"
-```
+\`\`\`
 
 ### Production Environment Variables
 Make sure to set these for production:
-```env
+\`\`\`env
 NODE_ENV=production
 BETTER_AUTH_URL="https://yourdomain.com"
 DATABASE_URL="your-production-database-url"
-```
+\`\`\`
 
 ## Optional Services Setup
 
@@ -156,28 +156,28 @@ DATABASE_URL="your-production-database-url"
 ## Common Issues
 
 ### Database Connection Issues
-```bash
+\`\`\`bash
 # Check if PostgreSQL is running
 pg_isready
 
 # Check connection
 psql $DATABASE_URL -c "SELECT 1"
-```
+\`\`\`
 
 ### Auth Secret Issues
 Make sure `BETTER_AUTH_SECRET` is at least 32 characters long:
-```bash
+\`\`\`bash
 echo $BETTER_AUTH_SECRET | wc -c
-```
+\`\`\`
 
 ### Port Already in Use
-```bash
+\`\`\`bash
 # Kill process on port 3000
 lsof -ti:3000 | xargs kill -9
 
 # Or use different port
 PORT=3001 npm run dev
-```
+\`\`\`
 
 ## Development Workflow
 
@@ -188,13 +188,13 @@ PORT=3001 npm run dev
 
 ## Available Scripts
 
-```bash
+\`\`\`bash
 npm run dev          # Start development server
 npm run build        # Build for production
 npm run start        # Start production server
 npm run lint         # Run ESLint
 npm run db:seed      # Populate database with test data
-```
+\`\`\`
 
 ## Database Management
 
@@ -202,7 +202,7 @@ This project uses **Drizzle ORM** for database management. Here are the availabl
 
 ### Migration Commands
 
-```bash
+\`\`\`bash
 # Generate new migrations from schema changes
 npm run db:generate
 
@@ -220,7 +220,7 @@ npm run db:seed
 
 # Drop all tables (DANGEROUS!)
 npm run db:drop
-```
+\`\`\`
 
 ### Migration Workflow
 
@@ -232,16 +232,16 @@ npm run db:drop
 ### Development vs Production
 
 **Development:**
-```bash
+\`\`\`bash
 # Quick schema sync (no migration files)
 npm run db:push
-```
+\`\`\`
 
 **Production:**
-```bash
+\`\`\`bash
 # Always use migrations for production
 npm run db:migrate
-```
+\`\`\`
 
 ## Security Features Enabled
 
