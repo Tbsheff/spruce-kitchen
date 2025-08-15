@@ -85,7 +85,6 @@ function OnboardingContent() {
 
     try {
       const result = await createMealPlan.mutateAsync({
-        meals: data.meals,
         boxSize: data.size,
         planType: data.purchaseType,
         deliveryFrequency: data.frequency,

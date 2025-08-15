@@ -1,12 +1,12 @@
 import { initTRPC, TRPCError } from "@trpc/server"
-import type { CreateNextContextOptions } from "@trpc/server/adapters/next"
+import type { FetchCreateContextFnOptions } from "@trpc/server/adapters/fetch"
 import superjson from "superjson"
 import { ZodError } from "zod"
 import { db } from "@/lib/db"
 import { auth } from "@/lib/auth"
 
-export const createTRPCContext = async (opts: CreateNextContextOptions) => {
-  const { req, res } = opts
+export const createTRPCContext = async (opts: FetchCreateContextFnOptions) => {
+  const { req } = opts
 
   // Get the session from better-auth
   let session = null
@@ -25,7 +25,6 @@ export const createTRPCContext = async (opts: CreateNextContextOptions) => {
     db,
     session,
     req,
-    res,
   }
 }
 

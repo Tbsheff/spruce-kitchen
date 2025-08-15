@@ -5,13 +5,13 @@ import { Label } from "@/components/ui/label"
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 
-type PurchaseType = "one-off" | "subscription"
+type PurchaseType = "one-time" | "subscription"
 
 interface DeliveryPlanProps {
   purchaseType?: PurchaseType
-  frequency?: "monthly" | "every2months"
+  frequency?: "weekly" | "bi-weekly" | "monthly"
   onPurchaseTypeChange: (type: PurchaseType) => void
-  onFrequencyChange: (frequency: "monthly" | "every2months") => void
+  onFrequencyChange: (frequency: "weekly" | "bi-weekly" | "monthly") => void
 }
 
 export function DeliveryPlan({ purchaseType, frequency, onPurchaseTypeChange, onFrequencyChange }: DeliveryPlanProps) {
@@ -31,8 +31,8 @@ export function DeliveryPlan({ purchaseType, frequency, onPurchaseTypeChange, on
               className="space-y-3"
             >
               <div className="flex items-start gap-4 p-4 border rounded-lg hover:bg-muted/50 transition-colors">
-                <RadioGroupItem id="one-off" value="one-off" className="mt-1" />
-                <Label htmlFor="one-off" className="flex-1 cursor-pointer">
+                <RadioGroupItem id="one-time" value="one-time" className="mt-1" />
+                <Label htmlFor="one-time" className="flex-1 cursor-pointer">
                   <div className="font-medium">One-time Purchase</div>
                   <p className="text-sm text-muted-foreground">Try our meals with no commitment</p>
                 </Label>
@@ -55,8 +55,9 @@ export function DeliveryPlan({ purchaseType, frequency, onPurchaseTypeChange, on
                   <SelectValue placeholder="Choose delivery frequency" />
                 </SelectTrigger>
                 <SelectContent>
+                  <SelectItem value="weekly">Weekly Delivery</SelectItem>
+                  <SelectItem value="bi-weekly">Bi-Weekly Delivery</SelectItem>
                   <SelectItem value="monthly">Monthly Delivery</SelectItem>
-                  <SelectItem value="every2months">Every 2 Months</SelectItem>
                 </SelectContent>
               </Select>
             </div>

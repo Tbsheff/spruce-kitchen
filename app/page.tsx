@@ -1,3 +1,5 @@
+"use client"
+
 import { Header } from "@/components/ui/header"
 import { Hero } from "@/components/ui/animated-hero"
 import { FeatureSection } from "@/components/ui/feature-section"

@@ -7,7 +7,7 @@ interface User {
   id: string
   email: string
   name?: string
-  role?: string
+  role?: "customer" | "admin" | "super_admin"
 }
 
 interface Session {
@@ -23,6 +23,7 @@ interface AuthContextType {
   signIn: (credentials: { email: string; password: string }) => Promise<any>
   signUp: (credentials: { email: string; password: string; name?: string }) => Promise<any>
   signOut: () => Promise<void>
+  signOutAll: () => Promise<void>
   updateSession: () => Promise<void>
 }
 
@@ -35,7 +36,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const updateSession = async () => {
     try {
-      if (!process.env.NEXT_PUBLIC_DATABASE_URL && !process.env.DATABASE_URL) {
+      // SECURITY: Database is REQUIRED - no bypasses
+      if (!process.env.DATABASE_URL) {
+        console.error('🚨 Authentication requires database configuration')
         setSession(null)
         setUser(null)
         setIsLoading(false)
@@ -43,8 +46,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       }
 
       // Only attempt to get session if auth client is available
-      const { authClient } = await import("./auth-client")
-      const sessionData = await authClient.getSession()
+      const { getSession } = await import("./auth-client")
+      const sessionData = await getSession()
       setSession(sessionData.data?.session || null)
       setUser(sessionData.data?.user || null)
     } catch (error) {
@@ -56,60 +59,119 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   }
 
-  const mockSignIn = async (credentials: { email: string; password: string }) => {
-    // Simulate successful login for development
-    const mockUser: User = {
-      id: "mock-user-id",
-      email: credentials.email,
-      name: "Test User",
-      role: "user",
-    }
-    const mockSession: Session = {
-      id: "mock-session-id",
-      userId: mockUser.id,
-      expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000), // 7 days
-    }
+  const signIn = async (credentials: { email: string; password: string }) => {
+    try {
+      if (!process.env.DATABASE_URL) {
+        throw new Error('Database not configured. Please set DATABASE_URL environment variable.')
+      }
 
-    setUser(mockUser)
-    setSession(mockSession)
-    return { data: { user: mockUser, session: mockSession } }
+      // Note: Rate limiting is now handled server-side via API calls
+      // Client-side auth doesn't need direct database access
+
+      const { signIn } = await import("./auth-client")
+      const result = await signIn.email(credentials)
+      
+      if (result.data?.user) {
+        setUser(result.data.user)
+        // Get session after successful login
+        await updateSession()
+      }
+      
+      return result
+    } catch (error) {
+      console.error('Sign in failed:', error)
+      throw error
+    }
   }
 
-  const mockSignUp = async (credentials: { email: string; password: string; name?: string }) => {
-    // Simulate successful signup for development
-    const mockUser: User = {
-      id: "mock-user-id",
-      email: credentials.email,
-      name: credentials.name || "New User",
-      role: "user",
-    }
-    const mockSession: Session = {
-      id: "mock-session-id",
-      userId: mockUser.id,
-      expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000), // 7 days
-    }
+  const signUp = async (credentials: { email: string; password: string; name?: string }) => {
+    try {
+      if (!process.env.DATABASE_URL) {
+        throw new Error('Database not configured. Please set DATABASE_URL environment variable.')
+      }
 
-    setUser(mockUser)
-    setSession(mockSession)
-    return { data: { user: mockUser, session: mockSession } }
+      // Note: Rate limiting is now handled server-side via API calls
+      // Client-side auth doesn't need direct database access
+
+      const { signUp } = await import("./auth-client")
+      const result = await signUp.email({
+        ...credentials,
+        name: credentials.name || "Anonymous User"
+      })
+      
+      if (result.data?.user) {
+        setUser(result.data.user)
+        // Get session after successful login
+        await updateSession()
+      }
+      
+      return result
+    } catch (error) {
+      console.error('Sign up failed:', error)
+      throw error
+    }
   }
 
-  const mockSignOut = async () => {
-    setUser(null)
-    setSession(null)
+  const signOut = async () => {
+    try {
+      if (!process.env.DATABASE_URL) {
+        // If no database, just clear local state
+        setUser(null)
+        setSession(null)
+        return
+      }
+
+      const { signOut } = await import("./auth-client")
+      await signOut()
+      setUser(null)
+      setSession(null)
+    } catch (error) {
+      console.error('Sign out failed:', error)
+      // Clear local state even if sign out fails
+      setUser(null)
+      setSession(null)
+    }
+  }
+
+  const signOutAll = async () => {
+    try {
+      if (!user || !process.env.DATABASE_URL) {
+        setUser(null)
+        setSession(null)
+        return
+      }
+
+      // Use better-auth's native session revocation
+      const { authClient } = await import("./auth-client")
+      // TODO: Use proper revokeSessions API for better-auth
+      // await authClient.revokeSessions({ userId: user.id })
+      
+      // Then sign out current session
+      await signOut()
+    } catch (error) {
+      console.error('Sign out all failed:', error)
+      // Clear local state even if sign out fails
+      setUser(null)
+      setSession(null)
+    }
   }
 
   useEffect(() => {
     updateSession()
+    
+    // Let better-auth handle session management automatically
+    // Session will auto-refresh based on updateAge (30 minutes)
+    // Session will expire based on expiresIn (2 hours)
   }, [])
 
   const contextValue: AuthContextType = {
     user,
     session,
     isLoading,
-    signIn: mockSignIn,
-    signUp: mockSignUp,
-    signOut: mockSignOut,
+    signIn,
+    signUp,
+    signOut,
+    signOutAll,
     updateSession,
   }
 

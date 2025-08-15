@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server"
 import type { NextRequest } from "next/server"
+import { generateCSPHeader } from "@/lib/security/input-validation"
 
 // Define protected and public routes
 const protectedRoutes = ["/onboarding", "/dashboard", "/profile", "/settings"]
@@ -34,9 +35,52 @@ export async function middleware(request: NextRequest) {
   const isAuthRoute = authRoutes.some((route) => pathname.startsWith(route))
   const isProtectedRoute = protectedRoutes.some((route) => pathname.startsWith(route))
 
+  // SECURITY: Database is REQUIRED for authentication - no exceptions
   if (!process.env.DATABASE_URL) {
-    // Without database, treat all routes as public for development
-    return NextResponse.next()
+    console.error('🚨 SECURITY ERROR: DATABASE_URL is required for authentication')
+    console.error('🚨 Configure your database to use this application')
+    
+    // For protected routes, always redirect to login
+    if (isProtectedRoute) {
+      const loginUrl = new URL("/login", request.url)
+      loginUrl.searchParams.set("error", "service_unavailable")
+      return NextResponse.redirect(loginUrl)
+    }
+    
+    // For auth routes, show generic error
+    if (isAuthRoute) {
+      const errorUrl = new URL("/", request.url)
+      errorUrl.searchParams.set("error", "service_unavailable")
+      return NextResponse.redirect(errorUrl)
+    }
+    
+    // Public routes can still work without database
+    if (isPublicRoute) {
+      const response = NextResponse.next()
+      
+      // SECURITY: Add security headers even when database not configured
+      response.headers.set('Content-Security-Policy', generateCSPHeader())
+      response.headers.set('X-Frame-Options', 'DENY')
+      response.headers.set('X-Content-Type-Options', 'nosniff')
+      response.headers.set('Referrer-Policy', 'strict-origin-when-cross-origin')
+      response.headers.set('Permissions-Policy', 'camera=(), microphone=(), location=()')
+      response.headers.set('X-XSS-Protection', '1; mode=block')
+      
+      if (process.env.NODE_ENV === 'production') {
+        response.headers.set('Strict-Transport-Security', 'max-age=31536000; includeSubDomains; preload')
+      }
+      
+      return response
+    }
+    
+    // Default to blocking access with generic error message
+    return new NextResponse(
+      'Service temporarily unavailable. Please try again later.',
+      { 
+        status: 503,
+        headers: { 'Content-Type': 'text/plain' }
+      }
+    )
   }
 
   try {
@@ -60,8 +104,23 @@ export async function middleware(request: NextRequest) {
       return NextResponse.redirect(loginUrl)
     }
 
-    // Allow the request to continue
-    return NextResponse.next()
+    // Allow the request to continue with security headers
+    const response = NextResponse.next()
+    
+    // SECURITY: Add comprehensive security headers
+    response.headers.set('Content-Security-Policy', generateCSPHeader())
+    response.headers.set('X-Frame-Options', 'DENY')
+    response.headers.set('X-Content-Type-Options', 'nosniff')
+    response.headers.set('Referrer-Policy', 'strict-origin-when-cross-origin')
+    response.headers.set('Permissions-Policy', 'camera=(), microphone=(), location=()')
+    response.headers.set('X-XSS-Protection', '1; mode=block')
+    
+    // HSTS header for production
+    if (process.env.NODE_ENV === 'production') {
+      response.headers.set('Strict-Transport-Security', 'max-age=31536000; includeSubDomains; preload')
+    }
+    
+    return response
   } catch (error) {
     console.error("Middleware auth check failed:", error)
 
@@ -72,8 +131,22 @@ export async function middleware(request: NextRequest) {
       return NextResponse.redirect(loginUrl)
     }
 
-    // For public routes, continue even if auth check fails
-    return NextResponse.next()
+    // For public routes, continue even if auth check fails - but still add security headers
+    const response = NextResponse.next()
+    
+    // SECURITY: Add security headers even for public routes
+    response.headers.set('Content-Security-Policy', generateCSPHeader())
+    response.headers.set('X-Frame-Options', 'DENY')
+    response.headers.set('X-Content-Type-Options', 'nosniff')
+    response.headers.set('Referrer-Policy', 'strict-origin-when-cross-origin')
+    response.headers.set('Permissions-Policy', 'camera=(), microphone=(), location=()')
+    response.headers.set('X-XSS-Protection', '1; mode=block')
+    
+    if (process.env.NODE_ENV === 'production') {
+      response.headers.set('Strict-Transport-Security', 'max-age=31536000; includeSubDomains; preload')
+    }
+    
+    return response
   }
 }
 

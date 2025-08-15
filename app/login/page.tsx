@@ -37,10 +37,9 @@ export default function LoginPage() {
     setError("")
 
     try {
-      const result = await signIn.email({
+      const result = await signIn({
         email,
         password,
-        rememberMe,
       })
 
       if (result.error) {
@@ -62,10 +61,8 @@ export default function LoginPage() {
       setIsLoading(true)
       setError("")
 
-      await signIn.social({
-        provider,
-        callbackURL: redirectUrl,
-      })
+      // TODO: Fix social login with new better-auth API
+      setError(`${provider} login not yet implemented with new auth system`)
     } catch (err) {
       setError(`${provider} login failed. Please try again.`)
       console.error(`${provider} login error:`, err)

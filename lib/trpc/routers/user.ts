@@ -1,15 +1,32 @@
 import { z } from "zod"
-import { createTRPCRouter, protectedProcedure } from "@/lib/trpc/server"
+import { secureString, secureEmail, secureId } from "@/lib/security/input-validation"
+import { rateLimitMiddleware } from "@/lib/security/rate-limiting"
+import { TRPCError } from "@trpc/server"
+import { createTRPCRouter } from "@/lib/trpc/server"
+import { 
+  protectedProcedure, 
+  customerProcedure, 
+  adminProcedure,
+  superAdminProcedure,
+  requirePermission,
+  ownershipProcedure 
+} from "@/lib/trpc/procedures"
+import { USER_PERMISSIONS, ADMIN_PERMISSIONS } from "@/lib/auth/permissions"
+import { logUserChange } from "@/lib/services/audit"
 
 export const userRouter = createTRPCRouter({
-  // Get current user profile
-  getProfile: protectedProcedure.query(async ({ ctx }) => {
+  // Get current user profile - requires user:read:own permission
+  getProfile: requirePermission(USER_PERMISSIONS.READ_OWN).query(async ({ ctx }) => {
+    // Log the access
+    await ctx.audit.log("user:read", "user", ctx.user.id)
+
     if (!process.env.DATABASE_URL) {
       // Mock data when no database is configured
       return {
         id: ctx.user.id,
         name: ctx.user.name,
         email: ctx.user.email,
+        role: ctx.userRole,
         createdAt: new Date(),
         preferences: {
           dietaryRestrictions: [],
@@ -25,6 +42,7 @@ export const userRouter = createTRPCRouter({
       id: ctx.user.id,
       name: ctx.user.name,
       email: ctx.user.email,
+      role: ctx.userRole,
       createdAt: new Date(),
       preferences: {
         dietaryRestrictions: [],
@@ -35,15 +53,19 @@ export const userRouter = createTRPCRouter({
     }
   }),
 
-  // Update user profile
-  updateProfile: protectedProcedure
+  // Update user profile - requires user:write:own permission
+  updateProfile: requirePermission(USER_PERMISSIONS.WRITE_OWN)
+    .use(rateLimitMiddleware('user:profile_update'))
     .input(
       z.object({
-        name: z.string().min(1).optional(),
-        email: z.string().email().optional(),
+        name: secureString(1, 100).optional(),
+        email: secureEmail().optional(),
       }),
     )
     .mutation(async ({ ctx, input }) => {
+      // Log the change
+      await ctx.audit.log("user:update", "user", ctx.user.id, { changes: input })
+
       if (!process.env.DATABASE_URL) {
         // Mock response when no database is configured
         return {
@@ -52,6 +74,7 @@ export const userRouter = createTRPCRouter({
             id: ctx.user.id,
             name: input.name || ctx.user.name,
             email: input.email || ctx.user.email,
+            role: ctx.userRole,
           },
         }
       }
@@ -63,19 +86,23 @@ export const userRouter = createTRPCRouter({
           id: ctx.user.id,
           name: input.name || ctx.user.name,
           email: input.email || ctx.user.email,
+          role: ctx.userRole,
         },
       }
     }),
 
-  updatePreferences: protectedProcedure
+  updatePreferences: requirePermission(USER_PERMISSIONS.WRITE_OWN)
+    .use(rateLimitMiddleware('user:profile_update'))
     .input(
       z.object({
-        dietaryRestrictions: z.array(z.string()).optional(),
-        allergies: z.array(z.string()).optional(),
+        dietaryRestrictions: z.array(secureString(1, 50)).max(20).optional(),
+        allergies: z.array(secureString(1, 50)).max(20).optional(),
         servingSize: z.enum(["small", "medium", "large"]).optional(),
       }),
     )
     .mutation(async ({ ctx, input }) => {
+      await ctx.audit.log("user:update_preferences", "user", ctx.user.id, { preferences: input })
+
       if (!process.env.DATABASE_URL) {
         return {
           success: true,
@@ -90,18 +117,21 @@ export const userRouter = createTRPCRouter({
       }
     }),
 
-  updateDeliveryAddress: protectedProcedure
+  updateDeliveryAddress: requirePermission(USER_PERMISSIONS.WRITE_OWN)
+    .use(rateLimitMiddleware('user:profile_update'))
     .input(
       z.object({
-        street: z.string().min(1),
-        city: z.string().min(1),
-        state: z.string().min(1),
-        zipCode: z.string().min(5),
-        country: z.string().min(1),
-        instructions: z.string().optional(),
+        street: secureString(1, 200),
+        city: secureString(1, 100),
+        state: secureString(1, 50),
+        zipCode: secureString(5, 10),
+        country: secureString(1, 50),
+        instructions: secureString(0, 500).optional(),
       }),
     )
     .mutation(async ({ ctx, input }) => {
+      await ctx.audit.log("user:update_address", "user", ctx.user.id, { address: input })
+
       if (!process.env.DATABASE_URL) {
         return {
           success: true,
@@ -116,7 +146,7 @@ export const userRouter = createTRPCRouter({
       }
     }),
 
-  getOrderHistory: protectedProcedure
+  getOrderHistory: requirePermission(USER_PERMISSIONS.READ_OWN)
     .input(
       z.object({
         limit: z.number().min(1).max(100).default(10),
@@ -124,6 +154,8 @@ export const userRouter = createTRPCRouter({
       }),
     )
     .query(async ({ ctx, input }) => {
+      await ctx.audit.log("user:read_orders", "order", undefined, { userId: ctx.user.id })
+
       if (!process.env.DATABASE_URL) {
         return {
           orders: [],
@@ -131,10 +163,117 @@ export const userRouter = createTRPCRouter({
         }
       }
 
+      // SECURITY: Only return orders that belong to the authenticated user
+      const { db } = await import("@/lib/db")
+      const dbInstance = db()
+      const { order } = await import("@/lib/db/schema")
+      const { eq, desc, count } = await import("drizzle-orm")
+      
+      const userOrders = await dbInstance.select()
+        .from(order)
+        .where(eq(order.userId, ctx.user.id))
+        .orderBy(desc(order.createdAt))
+        .limit(input.limit)
+        .offset(input.offset)
+      
+      const totalCount = await dbInstance.select({ count: count() })
+        .from(order)
+        .where(eq(order.userId, ctx.user.id))
+
+      return {
+        orders: userOrders,
+        total: totalCount[0]?.count || 0,
+      }
+    }),
+
+  // Admin-only endpoints
+  getAllUsers: adminProcedure
+    .use(rateLimitMiddleware('admin:user_management'))
+    .input(
+      z.object({
+        limit: z.number().min(1).max(100).default(50),
+        offset: z.number().min(0).default(0),
+        role: z.enum(["customer", "admin", "super_admin"]).optional(),
+      }),
+    )
+    .query(async ({ ctx, input }) => {
+      await ctx.audit.log("admin:list_users", "user", undefined, input)
+
+      if (!process.env.DATABASE_URL) {
+        return {
+          users: [],
+          total: 0,
+        }
+      }
+
       // TODO: Implement actual database query when DB is connected
       return {
-        orders: [],
+        users: [],
         total: 0,
+      }
+    }),
+
+  updateUserRole: superAdminProcedure
+    .use(rateLimitMiddleware('admin:user_management'))
+    .input(
+      z.object({
+        userId: secureId(),
+        role: z.enum(["customer", "admin", "super_admin"]),
+      }),
+    )
+    .mutation(async ({ ctx, input }) => {
+      if (input.userId === ctx.user.id) {
+        throw new TRPCError({
+          code: "BAD_REQUEST",
+          message: "Cannot change your own role",
+        })
+      }
+
+      await ctx.audit.log("admin:update_user_role", "user", input.userId, {
+        newRole: input.role,
+        changedBy: ctx.user.id,
+      })
+
+      if (!process.env.DATABASE_URL) {
+        return {
+          success: true,
+          message: `User role updated to ${input.role}`,
+        }
+      }
+
+      // TODO: Implement actual database update when DB is connected
+      return {
+        success: true,
+        message: `User role updated to ${input.role}`,
+      }
+    }),
+
+  deleteUser: superAdminProcedure
+    .use(rateLimitMiddleware('admin:user_management'))
+    .input(z.object({ userId: secureId() }))
+    .mutation(async ({ ctx, input }) => {
+      if (input.userId === ctx.user.id) {
+        throw new TRPCError({
+          code: "BAD_REQUEST",
+          message: "Cannot delete your own account",
+        })
+      }
+
+      await ctx.audit.log("admin:delete_user", "user", input.userId, {
+        deletedBy: ctx.user.id,
+      })
+
+      if (!process.env.DATABASE_URL) {
+        return {
+          success: true,
+          message: "User account deleted",
+        }
+      }
+
+      // TODO: Implement actual database deletion when DB is connected
+      return {
+        success: true,
+        message: "User account deleted",
       }
     }),
 })

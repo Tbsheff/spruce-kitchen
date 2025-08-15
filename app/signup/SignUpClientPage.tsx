@@ -11,17 +11,20 @@ import { Label } from "@/components/ui/label"
 import { Separator } from "@/components/ui/separator"
 import { Checkbox } from "@/components/ui/checkbox"
 import { Eye, EyeOff, AlertCircle } from "lucide-react"
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { Header } from "@/components/ui/header"
 import { Footer } from "@/components/ui/footer"
 import { useAuth } from "@/lib/auth-context"
 import { Alert, AlertDescription } from "@/components/ui/alert"
+import { validatePassword } from "@/lib/security/password-policy"
+import type { PasswordValidationResult } from "@/lib/security/password-policy"
 
 export default function SignUpClientPage() {
   const [showPassword, setShowPassword] = useState(false)
   const [showConfirmPassword, setShowConfirmPassword] = useState(false)
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState("")
+  const [passwordValidation, setPasswordValidation] = useState<PasswordValidationResult | null>(null)
 
   const [formData, setFormData] = useState({
     firstName: "",
@@ -40,10 +43,30 @@ export default function SignUpClientPage() {
     setFormData((prev) => ({ ...prev, [field]: value }))
   }
 
+  // Validate password on change
+  useEffect(() => {
+    if (formData.password) {
+      const result = validatePassword(formData.password, {
+        email: formData.email,
+        name: `${formData.firstName} ${formData.lastName}`.trim()
+      })
+      setPasswordValidation(result)
+    } else {
+      setPasswordValidation(null)
+    }
+  }, [formData.password, formData.email, formData.firstName, formData.lastName])
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     setIsLoading(true)
     setError("")
+
+    // Validate password policy
+    if (passwordValidation && !passwordValidation.isValid) {
+      setError(`Password does not meet requirements: ${passwordValidation.errors.join(", ")}`)
+      setIsLoading(false)
+      return
+    }
 
     if (formData.password !== formData.confirmPassword) {
       setError("Passwords do not match")
@@ -58,7 +81,7 @@ export default function SignUpClientPage() {
     }
 
     try {
-      const result = await signUp.email({
+      const result = await signUp({
         email: formData.email,
         password: formData.password,
         name: `${formData.firstName} ${formData.lastName}`,
@@ -84,10 +107,8 @@ export default function SignUpClientPage() {
       setIsLoading(true)
       setError("")
 
-      await signUp.social({
-        provider,
-        callbackURL: "/onboarding",
-      })
+      // TODO: Fix social signup with new better-auth API
+      setError(`${provider} signup not yet implemented with new auth system`)
     } catch (err) {
       setError(`${provider} sign up failed. Please try again.`)
       console.error(`${provider} sign up error:`, err)
@@ -182,6 +203,62 @@ export default function SignUpClientPage() {
                       {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
                     </Button>
                   </div>
+                  
+                  {/* Password Strength Indicator */}
+                  {passwordValidation && formData.password && (
+                    <div className="mt-2 space-y-2">
+                      <div className="flex items-center justify-between">
+                        <span className="text-sm font-medium">Password Strength:</span>
+                        <span className={`text-sm font-medium ${
+                          passwordValidation.strength === 'weak' ? 'text-red-600' :
+                          passwordValidation.strength === 'fair' ? 'text-orange-600' :
+                          passwordValidation.strength === 'good' ? 'text-blue-600' :
+                          'text-green-600'
+                        }`}>
+                          {passwordValidation.strength.toUpperCase()}
+                        </span>
+                      </div>
+                      
+                      {/* Strength Bar */}
+                      <div className="w-full bg-gray-200 rounded-full h-2">
+                        <div
+                          className={`h-2 rounded-full transition-all duration-300 ${
+                            passwordValidation.strength === 'weak' ? 'bg-red-500 w-1/4' :
+                            passwordValidation.strength === 'fair' ? 'bg-orange-500 w-2/4' :
+                            passwordValidation.strength === 'good' ? 'bg-blue-500 w-3/4' :
+                            'bg-green-500 w-full'
+                          }`}
+                        />
+                      </div>
+                      
+                      {/* Requirements List */}
+                      {!passwordValidation.isValid && (
+                        <div className="mt-2">
+                          <p className="text-sm text-gray-600 mb-1">Password must include:</p>
+                          <ul className="text-xs text-gray-500 space-y-1">
+                            <li className={passwordValidation.errors.some(e => e.includes('12 characters')) ? 'text-red-600' : 'text-green-600'}>
+                              ✓ At least 12 characters long
+                            </li>
+                            <li className={passwordValidation.errors.some(e => e.includes('uppercase')) ? 'text-red-600' : 'text-green-600'}>
+                              ✓ At least one uppercase letter (A-Z)
+                            </li>
+                            <li className={passwordValidation.errors.some(e => e.includes('lowercase')) ? 'text-red-600' : 'text-green-600'}>
+                              ✓ At least one lowercase letter (a-z)
+                            </li>
+                            <li className={passwordValidation.errors.some(e => e.includes('number')) ? 'text-red-600' : 'text-green-600'}>
+                              ✓ At least one number (0-9)
+                            </li>
+                            <li className={passwordValidation.errors.some(e => e.includes('special character')) ? 'text-red-600' : 'text-green-600'}>
+                              ✓ At least one special character (!@#$%^&*)
+                            </li>
+                            <li className={passwordValidation.errors.some(e => e.includes('common')) ? 'text-red-600' : 'text-green-600'}>
+                              ✓ Cannot be a common password
+                            </li>
+                          </ul>
+                        </div>
+                      )}
+                    </div>
+                  )}
                 </div>
 
                 <div className="space-y-2">

@@ -1,17 +1,35 @@
 import { betterAuth } from "better-auth"
 
+import { Resend } from "resend"
+
 let resend: any = null
 if (process.env.RESEND_API_KEY) {
-  const { Resend } = require("resend")
   resend = new Resend(process.env.RESEND_API_KEY)
 }
 
 export const auth = betterAuth({
+  // Database configuration
+  database: process.env.DATABASE_URL ? {
+    provider: "postgres",
+    url: process.env.DATABASE_URL,
+  } : undefined,
+
+  // Session configuration
+  session: {
+    expiresIn: 60 * 60 * 2, // 2 hours
+    updateAge: 60 * 30, // 30 minutes (auto refresh)
+    cookieCache: {
+      enabled: true,
+      maxAge: 60 * 5, // 5 minutes
+    },
+  },
+
+  // Email and password authentication
   emailAndPassword: {
     enabled: true,
-    requireEmailVerification: process.env.RESEND_API_KEY ? true : false, // Only require verification if Resend is configured
+    requireEmailVerification: process.env.RESEND_API_KEY ? true : false,
     ...(resend && {
-      sendResetPassword: async ({ user, url }) => {
+      sendResetPassword: async ({ user, url }: { user: any; url: string }) => {
         await resend.emails.send({
           from: "Spruce Kitchen <noreply@sprucekitchen.com>",
           to: user.email,
@@ -30,7 +48,7 @@ export const auth = betterAuth({
           `,
         })
       },
-      sendVerificationEmail: async ({ user, url }) => {
+      sendVerificationEmail: async ({ user, url }: { user: any; url: string }) => {
         await resend.emails.send({
           from: "Spruce Kitchen <noreply@sprucekitchen.com>",
           to: user.email,
@@ -49,6 +67,8 @@ export const auth = betterAuth({
       },
     }),
   },
+
+  // Social providers
   socialProviders: {
     google: {
       clientId: process.env.GOOGLE_CLIENT_ID || "",
@@ -59,22 +79,22 @@ export const auth = betterAuth({
       clientSecret: process.env.FACEBOOK_CLIENT_SECRET || "",
     },
   },
-  session: {
-    expiresIn: 60 * 60 * 24 * 7, // 7 days
-    updateAge: 60 * 60 * 24, // 1 day
-  },
+
+  // User configuration
   user: {
     additionalFields: {
       role: {
         type: "string",
-        defaultValue: "user",
+        defaultValue: "customer",
       },
     },
   },
+
+  // Security settings
   advanced: {
     generateId: () => crypto.randomUUID(),
   },
 })
 
 export type Session = typeof auth.$Infer.Session
-export type User = typeof auth.$Infer.User
+export type User = typeof auth.$Infer.Session.user

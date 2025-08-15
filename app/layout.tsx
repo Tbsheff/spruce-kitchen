@@ -4,6 +4,7 @@ import { GeistSans } from "geist/font/sans"
 import { GeistMono } from "geist/font/mono"
 import { AuthProvider } from "@/lib/auth-context"
 import { TRPCProvider } from "@/lib/trpc/provider"
+import "@/lib/config/env-validation" // Validate environment at startup
 import "./globals.css"
 
 export const metadata: Metadata = {

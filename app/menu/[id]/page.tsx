@@ -61,8 +61,9 @@ const recipes = {
   // Add more recipes as needed...
 }
 
-export default function RecipePage({ params }: { params: { id: string } }) {
-  const recipe = recipes[params.id as keyof typeof recipes]
+export default async function RecipePage({ params }: { params: Promise<{ id: string }> }) {
+  const { id } = await params
+  const recipe = recipes[id as keyof typeof recipes]
 
   if (!recipe) {
     notFound()
