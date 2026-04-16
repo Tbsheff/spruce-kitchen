@@ -7,7 +7,33 @@ import {
 } from "@/lib/security/input-validation.ts";
 
 /**
- * Builds a NextResponse for the downstream route with the nonce threaded
+ * Writes baseline security headers (safe for every response type: HTML,
+ * JSON, redirects, error bodies). Does NOT set CSP — CSP is HTML-only.
+ */
+function setBaselineHeaders(
+  response: NextResponse,
+  isProduction: boolean,
+): NextResponse {
+  response.headers.set("X-Frame-Options", "DENY");
+  response.headers.set("X-Content-Type-Options", "nosniff");
+  response.headers.set("Referrer-Policy", "strict-origin-when-cross-origin");
+  response.headers.set(
+    "Permissions-Policy",
+    "camera=(), microphone=(), location=()",
+  );
+
+  if (isProduction) {
+    response.headers.set(
+      "Strict-Transport-Security",
+      "max-age=31536000; includeSubDomains; preload",
+    );
+  }
+
+  return response;
+}
+
+/**
+ * Builds a NextResponse for a downstream HTML route with the nonce threaded
  * onto both the forwarded request headers (so server components can read
  * it via next/headers and Next.js can stamp <script nonce=...>) and the
  * response's CSP header (so the browser trusts those scripts).
@@ -24,23 +50,7 @@ function buildSecureResponse(
   });
 
   response.headers.set("Content-Security-Policy", generateCSPHeader(nonce));
-  response.headers.set("X-Frame-Options", "DENY");
-  response.headers.set("X-Content-Type-Options", "nosniff");
-  response.headers.set("Referrer-Policy", "strict-origin-when-cross-origin");
-  response.headers.set(
-    "Permissions-Policy",
-    "camera=(), microphone=(), location=()",
-  );
-  response.headers.set("X-XSS-Protection", "1; mode=block");
-
-  if (isProduction) {
-    response.headers.set(
-      "Strict-Transport-Security",
-      "max-age=31536000; includeSubDomains; preload",
-    );
-  }
-
-  return response;
+  return setBaselineHeaders(response, isProduction);
 }
 
 // Define protected and public routes
@@ -67,14 +77,14 @@ export async function middleware(request: NextRequest) {
   const isProduction = env.NODE_ENV === "production";
   const nonce = generateCSPNonce();
 
-  // Allow API routes and static files to pass through
+  // Allow API routes and static files to pass through with baseline headers
   if (
     pathname.startsWith("/api/") ||
     pathname.startsWith("/_next/") ||
     pathname.startsWith("/favicon.ico") ||
     pathname.includes(".")
   ) {
-    return NextResponse.next();
+    return setBaselineHeaders(NextResponse.next(), isProduction);
   }
 
   // Check if the route is public
@@ -113,12 +123,15 @@ export async function middleware(request: NextRequest) {
     }
 
     // Default to blocking access with generic error message
-    return new NextResponse(
-      "Service temporarily unavailable. Please try again later.",
-      {
-        status: 503,
-        headers: { "Content-Type": "text/plain" },
-      }
+    return setBaselineHeaders(
+      new NextResponse(
+        "Service temporarily unavailable. Please try again later.",
+        {
+          status: 503,
+          headers: { "Content-Type": "text/plain" },
+        },
+      ),
+      isProduction,
     );
   }
 
