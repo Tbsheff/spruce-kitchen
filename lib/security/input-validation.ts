@@ -239,7 +239,7 @@ export const inputSanitizationMiddleware = <
  */
 export const CSP_DIRECTIVES = {
   "default-src": ["'self'"],
-  "script-src": ["'self'", "'wasm-unsafe-eval'"], // Next.js requires wasm-unsafe-eval for compilation
+  "script-src": ["'self'", "'wasm-unsafe-eval'", "'unsafe-inline'", "'unsafe-eval'"], // Next.js dev needs unsafe-inline for hydration bootstrap and unsafe-eval for HMR
   "style-src": ["'self'", "'unsafe-inline'"], // Next.js requires unsafe-inline for CSS-in-JS
   "img-src": ["'self'", "data:", "https:"],
   "font-src": ["'self'"],
