@@ -9,6 +9,9 @@ const nextConfig = {
     unoptimized: true,
   },
   serverExternalPackages: ["better-auth", "postgres", "drizzle-orm"],
+  experimental: {
+    optimizePackageImports: ["lucide-react", "@radix-ui/react-icons"],
+  },
   turbopack: {
     root: rootDirectory,
   },

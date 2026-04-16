@@ -3,7 +3,7 @@ import Link from "next/link"
 import { Equal, X } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Logo } from "@/components/ui/logo"
-import React from "react"
+import React, { startTransition } from "react"
 import { cn } from "@/lib/utils"
 
 const menuItems = [
@@ -19,7 +19,7 @@ export const Header = () => {
 
   React.useEffect(() => {
     const handleScroll = () => {
-      setIsScrolled(window.scrollY > 50)
+      startTransition(() => setIsScrolled(window.scrollY > 50))
     }
     window.addEventListener("scroll", handleScroll, { passive: true })
     return () => window.removeEventListener("scroll", handleScroll)
