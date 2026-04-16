@@ -3,7 +3,7 @@ import { cn } from "@/lib/utils"
 
 /**
  * Brand logo — spruce branch + "SPRUCE KITCHEN MEALS" wordmark
- * loaded from /public/logo.png (793×221, landscape ~3.6:1).
+ * loaded from /public/logo.png (320×89, landscape ~3.6:1).
  *
  * `size` controls the rendered height; width scales proportionally.
  *   - "sm"      → 24px  (compact headers, sidebar)
@@ -17,7 +17,7 @@ const heights = {
   lg: 40,
 } as const
 
-const ASPECT = 793 / 221 // ~3.59
+const ASPECT = 320 / 89
 
 interface LogoProps {
   size?: keyof typeof heights

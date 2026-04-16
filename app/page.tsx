@@ -47,9 +47,15 @@ const faqItems = [
 export default function Home() {
   return (
     <div className="flex flex-col min-h-screen bg-background">
+      <a
+        href="#main"
+        className="sr-only focus:not-sr-only focus:absolute focus:left-4 focus:top-4 focus:z-[60] focus:rounded-md focus:bg-background focus:px-4 focus:py-2 focus:text-foreground focus:shadow-lg focus:outline-2 focus:outline-primary"
+      >
+        Skip to content
+      </a>
       <Header />
 
-      <main className="flex-1">
+      <main id="main" tabIndex={-1} className="flex-1 focus:outline-none">
         <EditorialHero />
         <HowItWorks />
         <FeatureSection />

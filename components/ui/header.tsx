@@ -27,7 +27,11 @@ export const Header = () => {
 
   return (
     <header>
-      <nav data-state={menuState && "active"} className="fixed left-0 w-full z-50 px-2">
+      <nav
+        aria-label="Main"
+        data-state={menuState && "active"}
+        className="fixed left-0 w-full z-50 px-2"
+      >
         <div
           className={cn(
             "mx-auto mt-2 max-w-6xl px-6 transition-all duration-300",
@@ -35,7 +39,7 @@ export const Header = () => {
           )}
         >
           <div className="flex items-center justify-between py-3">
-            <Link href="/" aria-label="Homepage" className="shrink-0">
+            <Link href="/" className="shrink-0">
               <Logo size="lg" />
             </Link>
 
@@ -64,8 +68,11 @@ export const Header = () => {
             </div>
 
             <button
+              type="button"
               onClick={() => setMenuState(!menuState)}
               aria-label={menuState ? "Close Menu" : "Open Menu"}
+              aria-expanded={menuState}
+              aria-controls="mobile-menu-panel"
               className="relative z-20 -m-2.5 -mr-4 cursor-pointer p-2.5 lg:hidden"
             >
               <Equal className="in-data-[state=active]:rotate-180 in-data-[state=active]:scale-0 in-data-[state=active]:opacity-0 m-auto size-6 duration-200" />
@@ -74,6 +81,8 @@ export const Header = () => {
           </div>
 
           <div
+            id="mobile-menu-panel"
+            aria-hidden={!menuState}
             className={cn(
               "overflow-hidden transition-all duration-300 lg:hidden",
               menuState ? "max-h-96 border-t pb-6 pt-4" : "max-h-0",

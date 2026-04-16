@@ -23,6 +23,8 @@ const columns = [
   { heading: "Legal", items: navigation.legal },
 ]
 
+const CURRENT_YEAR = new Date().getFullYear()
+
 function Footer() {
   return (
     <footer className="border-t border-border/60 bg-background pt-24 pb-16 lg:pt-32 lg:pb-20">
@@ -35,12 +37,15 @@ function Footer() {
             </p>
           </div>
 
-          <div className="lg:col-span-7 grid grid-cols-2 gap-12 sm:grid-cols-3">
+          <nav
+            aria-label="Footer"
+            className="lg:col-span-7 grid grid-cols-2 gap-12 sm:grid-cols-3"
+          >
             {columns.map((col) => (
               <div key={col.heading}>
-                <p className="text-[10px] font-semibold uppercase tracking-[0.35em] text-accent">
+                <h2 className="text-[10px] font-semibold uppercase tracking-[0.35em] text-accent">
                   {col.heading}
-                </p>
+                </h2>
                 <ul className="mt-6 space-y-3.5">
                   {col.items.map((item) => (
                     <li key={item.name}>
@@ -55,12 +60,12 @@ function Footer() {
                 </ul>
               </div>
             ))}
-          </div>
+          </nav>
         </div>
 
         <div className="mt-24 flex flex-col gap-4 border-t border-border/40 pt-8 sm:flex-row sm:items-center sm:justify-between">
           <p className="text-xs text-muted-foreground">
-            &copy; {new Date().getFullYear()} Spruce Kitchen Meals
+            &copy; {CURRENT_YEAR} Spruce Kitchen Meals
           </p>
           <p className="text-xs text-muted-foreground">
             Made in small batches.
