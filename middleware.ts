@@ -1,6 +1,48 @@
 import type { NextRequest } from "next/server";
 import { NextResponse } from "next/server";
-import { generateCSPHeader } from "@/lib/security/input-validation.ts";
+import {
+  generateCSPHeader,
+  generateCSPNonce,
+} from "@/lib/security/input-validation.ts";
+
+/**
+ * Applies CSP + security headers to a response and returns it. Nonce is
+ * generated once per request by the caller and threaded through so
+ * identical values end up on both the request (so Next.js can stamp its
+ * inline scripts) and the response (so the browser trusts them).
+ */
+function applySecurityHeaders(
+  response: NextResponse,
+  nonce: string,
+  isProduction: boolean,
+): NextResponse {
+  response.headers.set("Content-Security-Policy", generateCSPHeader(nonce));
+  response.headers.set("X-Frame-Options", "DENY");
+  response.headers.set("X-Content-Type-Options", "nosniff");
+  response.headers.set("Referrer-Policy", "strict-origin-when-cross-origin");
+  response.headers.set(
+    "Permissions-Policy",
+    "camera=(), microphone=(), location=()",
+  );
+  response.headers.set("X-XSS-Protection", "1; mode=block");
+
+  if (isProduction) {
+    response.headers.set(
+      "Strict-Transport-Security",
+      "max-age=31536000; includeSubDomains; preload",
+    );
+  }
+
+  return response;
+}
+
+function nextWithNonce(request: NextRequest, nonce: string): NextResponse {
+  // Propagate the nonce on the request headers so server components and
+  // Next.js itself can read it via next/headers and stamp <script nonce=...>.
+  const forwardedHeaders = new Headers(request.headers);
+  forwardedHeaders.set("x-nonce", nonce);
+  return NextResponse.next({ request: { headers: forwardedHeaders } });
+}
 
 // Define protected and public routes
 const protectedRoutes = ["/onboarding", "/dashboard", "/profile", "/settings"];
@@ -23,6 +65,8 @@ export async function middleware(request: NextRequest) {
     DATABASE_URL: process.env.DATABASE_URL,
     NODE_ENV: process.env.NODE_ENV,
   };
+  const isProduction = env.NODE_ENV === "production";
+  const nonce = generateCSPNonce();
 
   // Allow API routes and static files to pass through
   if (
@@ -66,30 +110,11 @@ export async function middleware(request: NextRequest) {
 
     // Public routes can still work without database
     if (isPublicRoute) {
-      const response = NextResponse.next();
-
-      // SECURITY: Add security headers even when database not configured
-      response.headers.set("Content-Security-Policy", generateCSPHeader());
-      response.headers.set("X-Frame-Options", "DENY");
-      response.headers.set("X-Content-Type-Options", "nosniff");
-      response.headers.set(
-        "Referrer-Policy",
-        "strict-origin-when-cross-origin"
+      return applySecurityHeaders(
+        nextWithNonce(request, nonce),
+        nonce,
+        isProduction,
       );
-      response.headers.set(
-        "Permissions-Policy",
-        "camera=(), microphone=(), location=()"
-      );
-      response.headers.set("X-XSS-Protection", "1; mode=block");
-
-      if (env.NODE_ENV === "production") {
-        response.headers.set(
-          "Strict-Transport-Security",
-          "max-age=31536000; includeSubDomains; preload"
-        );
-      }
-
-      return response;
     }
 
     // Default to blocking access with generic error message
@@ -123,29 +148,11 @@ export async function middleware(request: NextRequest) {
       return NextResponse.redirect(loginUrl);
     }
 
-    // Allow the request to continue with security headers
-    const response = NextResponse.next();
-
-    // SECURITY: Add comprehensive security headers
-    response.headers.set("Content-Security-Policy", generateCSPHeader());
-    response.headers.set("X-Frame-Options", "DENY");
-    response.headers.set("X-Content-Type-Options", "nosniff");
-    response.headers.set("Referrer-Policy", "strict-origin-when-cross-origin");
-    response.headers.set(
-      "Permissions-Policy",
-      "camera=(), microphone=(), location=()"
+    return applySecurityHeaders(
+      nextWithNonce(request, nonce),
+      nonce,
+      isProduction,
     );
-    response.headers.set("X-XSS-Protection", "1; mode=block");
-
-    // HSTS header for production
-    if (env.NODE_ENV === "production") {
-      response.headers.set(
-        "Strict-Transport-Security",
-        "max-age=31536000; includeSubDomains; preload"
-      );
-    }
-
-    return response;
   } catch (error) {
     console.error("Middleware auth check failed:", error);
 
@@ -156,28 +163,11 @@ export async function middleware(request: NextRequest) {
       return NextResponse.redirect(loginUrl);
     }
 
-    // For public routes, continue even if auth check fails - but still add security headers
-    const response = NextResponse.next();
-
-    // SECURITY: Add security headers even for public routes
-    response.headers.set("Content-Security-Policy", generateCSPHeader());
-    response.headers.set("X-Frame-Options", "DENY");
-    response.headers.set("X-Content-Type-Options", "nosniff");
-    response.headers.set("Referrer-Policy", "strict-origin-when-cross-origin");
-    response.headers.set(
-      "Permissions-Policy",
-      "camera=(), microphone=(), location=()"
+    return applySecurityHeaders(
+      nextWithNonce(request, nonce),
+      nonce,
+      isProduction,
     );
-    response.headers.set("X-XSS-Protection", "1; mode=block");
-
-    if (env.NODE_ENV === "production") {
-      response.headers.set(
-        "Strict-Transport-Security",
-        "max-age=31536000; includeSubDomains; preload"
-      );
-    }
-
-    return response;
   }
 }
 

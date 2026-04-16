@@ -235,23 +235,59 @@ export const inputSanitizationMiddleware = <
 // Deprecated function removed - use DatabaseRateLimiter.checkRateLimit instead
 
 /**
- * Content Security Policy helpers
+ * Content Security Policy — nonce-based with 'strict-dynamic'.
+ *
+ * In production: script-src uses 'strict-dynamic' + per-request nonce. No
+ * 'unsafe-inline', no 'unsafe-eval'. Any script loaded by a nonced script
+ * inherits trust; everything else is blocked.
+ *
+ * In development: adds 'unsafe-eval' because Next.js HMR / Turbopack
+ * requires it to evaluate rebuilt modules. Also relaxes connect-src for
+ * the HMR websocket.
  */
-export const CSP_DIRECTIVES = {
-  "default-src": ["'self'"],
-  "script-src": ["'self'", "'wasm-unsafe-eval'", "'unsafe-inline'", "'unsafe-eval'"], // Next.js dev needs unsafe-inline for hydration bootstrap and unsafe-eval for HMR
-  "style-src": ["'self'", "'unsafe-inline'"], // Next.js requires unsafe-inline for CSS-in-JS
-  "img-src": ["'self'", "data:", "https:"],
-  "font-src": ["'self'"],
-  "connect-src": ["'self'"],
-  "frame-src": ["'none'"],
-  "object-src": ["'none'"],
-  "base-uri": ["'self'"],
-  "form-action": ["'self'"],
-};
 
-export function generateCSPHeader(): string {
-  return Object.entries(CSP_DIRECTIVES)
+export function generateCSPHeader(nonce: string): string {
+  const isDev = process.env.NODE_ENV !== "production";
+
+  const scriptSrc = [
+    "'self'",
+    `'nonce-${nonce}'`,
+    "'strict-dynamic'",
+    "'wasm-unsafe-eval'",
+    ...(isDev ? ["'unsafe-eval'"] : []),
+  ];
+
+  // Tailwind + Next.js font loader inject <style> with inline content that
+  // can't easily be nonced yet, so style-src keeps 'unsafe-inline'. This is
+  // the standard Next.js trade-off; style-src injections have no JS-exec
+  // impact so the XSS surface is narrow.
+  const styleSrc = ["'self'", "'unsafe-inline'"];
+
+  const connectSrc = ["'self'", ...(isDev ? ["ws:", "wss:"] : [])];
+
+  const directives: Record<string, string[]> = {
+    "default-src": ["'self'"],
+    "script-src": scriptSrc,
+    "style-src": styleSrc,
+    "img-src": ["'self'", "data:", "blob:", "https:"],
+    "font-src": ["'self'", "data:"],
+    "connect-src": connectSrc,
+    "frame-src": ["'none'"],
+    "object-src": ["'none'"],
+    "base-uri": ["'self'"],
+    "form-action": ["'self'"],
+    "frame-ancestors": ["'none'"],
+  };
+
+  return Object.entries(directives)
     .map(([directive, sources]) => `${directive} ${sources.join(" ")}`)
     .join("; ");
+}
+
+export function generateCSPNonce(): string {
+  // Web Crypto is available in Node 20+ and the Next.js edge runtime.
+  const bytes = new Uint8Array(16);
+  crypto.getRandomValues(bytes);
+  // Base64 without padding — shorter and valid inside the nonce attribute.
+  return btoa(String.fromCharCode(...bytes)).replace(/=+$/, "");
 }
