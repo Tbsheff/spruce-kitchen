@@ -115,3 +115,59 @@ export async function resolveCurrentUser(
   );
   return { status: "authenticated", user };
 }
+
+// Serialization helpers for transporting CurrentUserState across the
+// server/client boundary. The CurrentUser object has methods (can, isAdmin,
+// isSuperAdmin) that cannot be serialized — serialize to a plain shape,
+// hydrate back to a functional CurrentUser on the receiving side.
+
+export type SerializedCurrentUser = {
+  id: string;
+  email: string;
+  name: string | null;
+  role: Role;
+  permissions: readonly Permission[];
+};
+
+export type SerializedCurrentUserState =
+  | { status: "anonymous" }
+  | { status: "authenticated"; user: SerializedCurrentUser };
+
+export function serializeCurrentUser(
+  state: CurrentUserState
+): SerializedCurrentUserState {
+  if (state.status !== "authenticated") {
+    return { status: "anonymous" };
+  }
+  const { user } = state;
+  return {
+    status: "authenticated",
+    user: {
+      id: user.id,
+      email: user.email,
+      name: user.name,
+      role: user.role,
+      permissions: Array.from(user.permissions),
+    },
+  };
+}
+
+export function hydrateCurrentUser(
+  serialized: SerializedCurrentUserState
+): CurrentUserState {
+  if (serialized.status !== "authenticated") {
+    return { status: "anonymous" };
+  }
+  const { user } = serialized;
+  const permissions: ReadonlySet<Permission> = new Set(user.permissions);
+  return {
+    status: "authenticated",
+    user: makeCurrentUser(
+      user.id,
+      user.email,
+      user.name,
+      user.role,
+      permissions
+    ),
+  };
+}

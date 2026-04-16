@@ -17,6 +17,7 @@ lib/identity/
     prod/         # BetterAuth / Drizzle / SimpleAudit / SystemClock
     test/         # in-memory stand-ins for unit tests
   index.ts        # public API + createServerIdentityPorts()
+  server.ts       # RSC helpers: currentUser() + requireUser()
   testing.ts      # createTestIdentity() + in-memory re-exports
 ```
 
@@ -28,31 +29,81 @@ lib/identity/
 2. Production code must not import from `lib/identity/testing`.
 3. `resolveCurrentUser` is a pure function of its ports. Memoization belongs
    at the wiring layer (`createServerIdentityPorts` shares a request-scoped
-   Map; server helpers can wrap in `React.cache` per request).
+   Map; `lib/identity/server.ts` wraps the RSC call in `React.cache`).
 
 ## Phase status
 
-- **Phase 1 (done):** core + adapters + testing helper land as pure
-  additions. No existing file is modified. No callers migrate yet. The old
-  `RBACService`, `AuthGuard`, `useAuth`, and tRPC auth middleware continue
-  to work unchanged.
-- **Phase 2:** wire `ctx.currentUser` into tRPC context, introduce
-  `resourceProcedure()` factory, migrate `mealPlan` and `user` routers.
-- **Phase 3:** migrate client-side — replace `auth-context.tsx` consumers
-  with `useCurrentUser()`, delete `AuthGuard`, `useRequireAuth`,
-  `RBACService`, and the hardcoded mock permission matrix.
+| Phase | Status | Commit | What's in |
+|-------|--------|--------|-----------|
+| 1. Foundation | Done | `a772993` | Pure core, prod + test adapters, `createServerIdentityPorts`, `createTestIdentity` |
+| 2. Server rewire | Done | `bdbe402` | `ctx.currentUser` in tRPC, rewritten procedures, `lib/identity/server.ts` RSC helpers, `RBACService` + mock matrix deleted |
+| 2.5. Client seam | Done | pending | `serializeCurrentUser` / `hydrateCurrentUser` helpers in domain |
+| 3. Client migration | Not started | — | See below |
+| 4. Router ergonomics | Not started | — | See below |
 
-## Usage (after wiring)
+## Phase 3 — client migration (future work)
 
-### Server (tRPC procedure)
+Scope: replace every consumer of `useAuth` / `useUser` / `useSession` /
+`useRequireAuth` / `<AuthGuard>` with a single `useCurrentUser()` hook, and
+delete `lib/auth-context.tsx` + `components/auth/auth-guard.tsx`.
+
+Required fetch strategy: the client needs to call a server endpoint that
+returns the resolved `CurrentUserState`. The obvious path — add an
+`identity.me` tRPC query and consume it via React Query — triggered a
+pre-existing brittle `Parameters<typeof trpc.X.useMutation>` inference in
+`lib/trpc/hooks.ts`. That file extracts mutation option types from the
+AppRouter shape, and adding a new router subtree caused TypeScript to
+resolve the mutation signature to something incompatible with the
+`Parameters<>` constraint.
+
+Two viable paths for Phase 3:
+
+1. **Fix `hooks.ts` first.** Replace `Parameters<typeof trpc.X.useMutation>[0]`
+   with explicit option types (e.g., `UseTRPCMutationOptions<Input, Error, Output>`).
+   Then the `identity.me` router can be added without breaking the hook
+   file. This is the recommended path.
+2. **Use a plain REST `/api/me` handler** instead of a tRPC query, bypassing
+   the AppRouter type growth entirely. Faster but introduces a second data
+   path for the same thing.
+
+The serialization seam is already in place (`serializeCurrentUser` /
+`hydrateCurrentUser` in `core/domain.ts`), so the actual hook implementation
+is small once the fetch strategy is unblocked.
+
+## Phase 4 — router ergonomics (future work)
+
+Introduce the `resourceProcedure()` factory described in the RFC. Collapses
+the repeating "load row → check ownership → audit → return" pattern in
+`mealPlan.ts`, `user.ts`, and `admin.ts`. Measured target: `mealPlan.ts`
+handlers drop from ~138 LOC to ~28 LOC across `create`, `getById`, and
+`cancel`. Rollout can be per-route; no big-bang.
+
+## Usage (current)
+
+### Server component
+
+```tsx
+import { requireUser } from "@/lib/identity/server"
+
+export default async function Dashboard() {
+  const me = await requireUser() // redirects to /login if anonymous
+  return <h1>Welcome, {me.name}</h1>
+}
+```
+
+### tRPC procedure (any router)
 
 ```ts
-import { resolveCurrentUser, createServerIdentityPorts } from "@/lib/identity"
+import { requirePermission } from "@/lib/trpc/procedures"
 
-const ports = createServerIdentityPorts(req)
-const me = await resolveCurrentUser(ports)
-if (me.status !== "authenticated") throw unauthorized()
-if (!me.user.can("mealplan:write:own", plan.userId)) throw forbidden()
+export const something = requirePermission("mealplan:write:own")
+  .input(z.object({ id: z.string(), ownerId: z.string() }))
+  .mutation(({ ctx, input }) => {
+    // ctx.me.can(...) is synchronous, ownership-aware
+    if (!ctx.me.can("mealplan:write:own", input.ownerId)) throw forbidden()
+    // ctx.user, ctx.userRole, ctx.rbac, ctx.audit remain available
+    // for backward compatibility with existing routers
+  })
 ```
 
 ### Test
