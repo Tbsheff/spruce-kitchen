@@ -1,4 +1,4 @@
-import Footer from "@/components/ui/footer.tsx";
+import { Footer } from "@/components/ui/footer.tsx";
 import { Header } from "@/components/ui/header.tsx";
 
 export const metadata = {

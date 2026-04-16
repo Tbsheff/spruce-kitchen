@@ -304,12 +304,6 @@ export default async function PricingPage({
         </section>
 
         <FaqSection
-          contactInfo={{
-            title: "Still have questions?",
-            description:
-              "Our customer service team is here to help with pricing questions",
-            buttonText: "Contact Support",
-          }}
           description="Everything you need to know about our pricing and plans"
           items={faqItems}
           title="Frequently Asked Questions"
