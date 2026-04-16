@@ -1,243 +1,262 @@
-import { TRPCError } from "@trpc/server"
-import { createTRPCContext } from "./server"
-import { initTRPC } from "@trpc/server"
-import superjson from "superjson"
-import { RBACService } from "@/lib/auth/rbac"
-import { SimpleAuditService } from "@/lib/security/simple-audit"
-import { sanitizeObject } from "@/lib/security/input-validation"
-import type { Role } from "@/lib/db/schema"
-import type { Context } from "./server"
+import { initTRPC, TRPCError } from "@trpc/server";
+import superjson from "superjson";
+import type { Role } from "@/lib/db/schema.ts";
+import { sanitizeObject } from "@/lib/security/input-validation.ts";
+import type { AuditDetails } from "@/lib/security/simple-audit.ts";
+import { SimpleAuditService } from "@/lib/security/simple-audit.ts";
+import type { Context } from "./server.ts";
 
-// Initialize tRPC instance for procedures
 const t = initTRPC.context<Context>().create({
   transformer: superjson,
-})
+});
 
-/**
- * Enhanced procedure that includes permission checking, audit logging, and input sanitization
- */
-const createProtectedProcedure = (requiredPermission?: string, requiredRoles?: Role[]) => {
-  return t.procedure
-    .use(async ({ ctx, next, input }) => {
-      // SECURITY: Basic XSS protection (Zod schemas handle detailed validation)
-      if (input && typeof input === 'object') {
-        try {
-          // Simple sanitization - let Zod schemas handle detailed validation
-          input = sanitizeObject(input)
-        } catch (error) {
-          throw new TRPCError({
-            code: "BAD_REQUEST",
-            message: "Invalid input detected"
-          })
-        }
-      }
-      
-      return next({ input })
-    })
-    .use(async ({ ctx, next, meta }) => {
-      // Check if user is authenticated
-      if (!ctx.session?.user) {
-        throw new TRPCError({ 
-          code: "UNAUTHORIZED",
-          message: "Authentication required"
-        })
-      }
-
-    const user = ctx.session.user
-    const userId = user.id
-
-    // Get user's role
-    const userRole = await RBACService.getUserRole(userId)
-
-    // Check role requirements
-    if (requiredRoles && !requiredRoles.includes(userRole)) {
-      await SimpleAuditService.logPermissionDenied(
-        userId,
-        "access_endpoint",
-        "api",
-        undefined,
-        `role:${requiredRoles.join("|")}`,
-        ctx.req?.headers?.get?.("x-forwarded-for") || "unknown",
-        ctx.req?.headers?.get?.("user-agent") || "unknown"
-      )
-
-      throw new TRPCError({
-        code: "FORBIDDEN",
-        message: `Access denied. Required role: ${requiredRoles.join(" or ")}`
-      })
-    }
-
-    // Check specific permission
-    if (requiredPermission && !(await RBACService.userHasPermission(userId, requiredPermission))) {
-      await SimpleAuditService.logPermissionDenied(
-        userId,
-        "access_endpoint",
-        "api",
-        undefined,
-        requiredPermission,
-        ctx.req?.headers?.get?.("x-forwarded-for") || "unknown",
-        ctx.req?.headers?.get?.("user-agent") || "unknown"
-      )
-
-      throw new TRPCError({
-        code: "FORBIDDEN",
-        message: `Access denied. Required permission: ${requiredPermission}`
-      })
-    }
-
-    return next({
-      ctx: {
-        ...ctx,
-        session: ctx.session,
-        user: ctx.session.user,
-        userRole,
-        // Helper functions for easy access
-        rbac: {
-          hasPermission: (permission: string) => RBACService.userHasPermission(userId, permission),
-          canAccessOwnResource: (resourceUserId: string, permission: string) =>
-            RBACService.canAccessOwnResource(userId, resourceUserId, permission),
-          isAdmin: () => RBACService.isAdmin(userId),
-          isSuperAdmin: () => RBACService.isSuperAdmin(userId),
-        },
-        audit: {
-          log: (action: string, resource: string, resourceId?: string, details?: any) =>
-            SimpleAuditService.log({
-              userId,
-              action,
-              resource,
-              resourceId,
-              details,
-              ipAddress: ctx.req?.headers?.get?.("x-forwarded-for") || "unknown",
-              userAgent: ctx.req?.headers?.get?.("user-agent") || "unknown",
-            }),
-        },
-      },
-    })
-  })
+function metadataOf(ctx: Context) {
+  return {
+    ipAddress: ctx.metadata.ipAddress,
+    userAgent: ctx.metadata.userAgent,
+  };
 }
 
-// Base authenticated procedure (any authenticated user)
-export const protectedProcedure = createProtectedProcedure()
+/**
+ * Base procedure: sanitize input, require authentication, optionally enforce a
+ * role or permission, and expose a backward-compatible ctx shape to routers
+ * (`ctx.user`, `ctx.userRole`, `ctx.rbac`, `ctx.audit`, plus the newer `ctx.me`).
+ *
+ * Auth + permission logic is sourced from `ctx.currentUser`, which is resolved
+ * once per request in the tRPC context factory via the identity module. All
+ * permission checks here are synchronous against the materialized permission
+ * set — no per-check database lookups.
+ */
+const createProtectedProcedure = (
+  requiredPermission?: string,
+  requiredRoles?: Role[]
+) => {
+  return t.procedure
+    .use(async ({ next, input }) => {
+      let sanitizedInput: unknown = input;
+      if (input && typeof input === "object") {
+        try {
+          sanitizedInput = sanitizeObject(input);
+        } catch {
+          throw new TRPCError({
+            code: "BAD_REQUEST",
+            message: "Invalid input detected",
+          });
+        }
+      }
 
-// Customer procedures (default authenticated users)
-export const customerProcedure = createProtectedProcedure(undefined, ["customer", "admin", "super_admin"])
+      return next({ input: sanitizedInput as typeof input });
+    })
+    .use(async ({ ctx, next }) => {
+      if (ctx.currentUser.status !== "authenticated") {
+        throw new TRPCError({
+          code: "UNAUTHORIZED",
+          message: "Authentication required",
+        });
+      }
 
-// Admin procedures (admin or super_admin only)
-export const adminProcedure = createProtectedProcedure(undefined, ["admin", "super_admin"])
+      const me = ctx.currentUser.user;
+      const { ipAddress, userAgent } = metadataOf(ctx);
 
-// Super admin procedures (super_admin only)
-export const superAdminProcedure = createProtectedProcedure(undefined, ["super_admin"])
+      if (requiredRoles && !requiredRoles.includes(me.role)) {
+        void SimpleAuditService.logPermissionDenied(
+          me.id,
+          "access_endpoint",
+          "api",
+          undefined,
+          `role:${requiredRoles.join("|")}`,
+          ipAddress,
+          userAgent
+        );
 
-// Permission-based procedures
-export const requirePermission = (permission: string) => createProtectedProcedure(permission)
+        throw new TRPCError({
+          code: "FORBIDDEN",
+          message: `Access denied. Required role: ${requiredRoles.join(" or ")}`,
+        });
+      }
 
-// Resource ownership procedures
-export const createOwnershipProcedure = (resourceUserIdField: string = "userId") => {
-  return t.procedure.use(async ({ ctx, next, input }) => {
-    if (!ctx.session?.user) {
-      throw new TRPCError({ code: "UNAUTHORIZED" })
+      if (requiredPermission && !me.can(requiredPermission)) {
+        void SimpleAuditService.logPermissionDenied(
+          me.id,
+          "access_endpoint",
+          "api",
+          undefined,
+          requiredPermission,
+          ipAddress,
+          userAgent
+        );
+
+        throw new TRPCError({
+          code: "FORBIDDEN",
+          message: `Access denied. Required permission: ${requiredPermission}`,
+        });
+      }
+
+      return next({
+        ctx: {
+          ...ctx,
+          me,
+          user: me,
+          userRole: me.role,
+          rbac: {
+            hasPermission: (permission: string) => me.can(permission),
+            canAccessOwnResource: (
+              resourceUserId: string,
+              permission: string
+            ) => me.can(permission, resourceUserId),
+            isAdmin: () => me.isAdmin(),
+            isSuperAdmin: () => me.isSuperAdmin(),
+          },
+          audit: {
+            log: async (
+              action: string,
+              resource: string,
+              resourceId?: string,
+              details?: AuditDetails
+            ) =>
+              SimpleAuditService.log({
+                userId: me.id,
+                action,
+                resource,
+                resourceId: resourceId ?? null,
+                details: details ?? null,
+                ipAddress,
+                userAgent,
+              }),
+          },
+        },
+      });
+    });
+};
+
+export const protectedProcedure = createProtectedProcedure();
+export const customerProcedure = createProtectedProcedure(undefined, [
+  "customer",
+  "admin",
+  "super_admin",
+]);
+export const adminProcedure = createProtectedProcedure(undefined, [
+  "admin",
+  "super_admin",
+]);
+export const superAdminProcedure = createProtectedProcedure(undefined, [
+  "super_admin",
+]);
+export const requirePermission = (permission: string) =>
+  createProtectedProcedure(permission);
+
+export const createOwnershipProcedure = (_resourceUserIdField = "userId") => {
+  return t.procedure.use(async ({ ctx, next }) => {
+    if (ctx.currentUser.status !== "authenticated") {
+      throw new TRPCError({ code: "UNAUTHORIZED" });
     }
 
-    const userId = ctx.session.user.id
+    const me = ctx.currentUser.user;
+    const { ipAddress, userAgent } = metadataOf(ctx);
 
     return next({
       ctx: {
         ...ctx,
-        session: ctx.session,
-        user: ctx.session.user,
-        // Ownership validation helper
-        validateOwnership: async (resourceUserId: string, permission: string) => {
-          const canAccess = await RBACService.canAccessOwnResource(
-            userId,
-            resourceUserId,
-            permission
-          )
-
-          if (!canAccess) {
-            await SimpleAuditService.logPermissionDenied(
-              userId,
+        me,
+        user: me,
+        validateOwnership: async (
+          resourceUserId: string,
+          permission: string
+        ) => {
+          if (!me.can(permission, resourceUserId)) {
+            void SimpleAuditService.logPermissionDenied(
+              me.id,
               "access_resource",
               "owned_resource",
               resourceUserId,
               permission,
-              ctx.req?.headers?.get?.("x-forwarded-for") || "unknown",
-              ctx.req?.headers?.get?.("user-agent") || "unknown"
-            )
+              ipAddress,
+              userAgent
+            );
 
             throw new TRPCError({
               code: "FORBIDDEN",
-              message: "Access denied. You can only access your own resources."
-            })
+              message: "Access denied. You can only access your own resources.",
+            });
           }
 
-          return true
+          return true;
         },
       },
-    })
-  })
-}
+    });
+  });
+};
 
-// Ownership-based procedures
-export const ownershipProcedure = createOwnershipProcedure()
+export const ownershipProcedure = createOwnershipProcedure();
 
-// Combined procedures for common patterns
 export const userResourceProcedure = t.procedure
   .use(protectedProcedure._def.middlewares[0])
-  .use(createOwnershipProcedure()._def.middlewares[0])
+  .use(createOwnershipProcedure()._def.middlewares[0]);
 
-// Audit logging middleware
 export const auditedProcedure = (action: string, resource: string) => {
   return protectedProcedure.use(async ({ ctx, next, input }) => {
-    const result = await next()
+    const result = await next();
 
-    // Log successful operations
     if (result.ok) {
-      await ctx.audit.log(action, resource, undefined, { input })
+      void ctx.audit.log(action, resource, undefined, {
+        input: sanitizeForAudit(input),
+      });
     }
 
-    return result
-  })
+    return result;
+  });
+};
+
+// Narrow unknown input into a structure compatible with AuditDetails so
+// auditedProcedure can log it without type errors. Objects become nested
+// records; non-serializable values degrade to their string form.
+function sanitizeForAudit(value: unknown): AuditDetails {
+  if (value === null || value === undefined) {
+    return {};
+  }
+  if (typeof value === "object") {
+    return value as AuditDetails;
+  }
+  return { value: String(value) };
 }
 
-// Rate limiting middleware (basic implementation)
-const rateLimitMap = new Map<string, { count: number; resetTime: number }>()
+const rateLimitMap = new Map<string, { count: number; resetTime: number }>();
 
-export const rateLimitedProcedure = (maxRequests: number = 100, windowMs: number = 60000) => {
+export const rateLimitedProcedure = (maxRequests = 100, windowMs = 60_000) => {
   return protectedProcedure.use(async ({ ctx, next }) => {
-    const userId = ctx.user.id
-    const now = Date.now()
-    const userLimit = rateLimitMap.get(userId)
+    const userId = ctx.me.id;
+    const now = Date.now();
+    const userLimit = rateLimitMap.get(userId);
+    const { ipAddress, userAgent } = metadataOf(ctx);
 
     if (userLimit) {
       if (now < userLimit.resetTime) {
         if (userLimit.count >= maxRequests) {
-          await SimpleAuditService.logSecurityEvent(
+          void SimpleAuditService.logSecurityEvent(
             "rate_limit_exceeded",
             userId,
             { limit: maxRequests, window: windowMs },
-            ctx.req?.headers?.get?.("x-forwarded-for") || "unknown",
-            ctx.req?.headers?.get?.("user-agent") || "unknown"
-          )
+            ipAddress,
+            userAgent
+          );
 
           throw new TRPCError({
             code: "TOO_MANY_REQUESTS",
-            message: "Rate limit exceeded. Please try again later."
-          })
+            message: "Rate limit exceeded. Please try again later.",
+          });
         }
-        userLimit.count++
+        userLimit.count += 1;
       } else {
-        // Reset window
-        userLimit.count = 1
-        userLimit.resetTime = now + windowMs
+        userLimit.count = 1;
+        userLimit.resetTime = now + windowMs;
       }
     } else {
-      // First request
       rateLimitMap.set(userId, {
         count: 1,
-        resetTime: now + windowMs
-      })
+        resetTime: now + windowMs,
+      });
     }
 
-    return next()
-  })
-}
+    return next();
+  });
+};

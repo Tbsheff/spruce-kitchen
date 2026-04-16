@@ -12,71 +12,74 @@ import type {
   RequestMetadata,
   Role,
   RoleAuthorization,
-} from "@/lib/identity/core/ports"
+} from "@/lib/identity/core/ports.ts";
 
 export function InMemoryIdentityProvider(opts: {
-  session: RawSession | null
+  session: RawSession | null;
 }): IdentityProvider {
   return {
     async getSession() {
-      return opts.session
+      return opts.session;
     },
-  }
+  };
 }
 
 export function StaticAuthorizationStore(
-  seed: Partial<Record<Role, readonly string[]>>,
+  seed: Partial<Record<Role, readonly string[]>>
 ): AuthorizationStore {
   return {
     async getAuthorizationForRole(role: Role): Promise<RoleAuthorization> {
-      const list = seed[role] ?? []
-      return { role, permissions: new Set(list) }
+      const list = seed[role] ?? [];
+      return { role, permissions: new Set(list) };
     },
-  }
+  };
 }
 
 export type RecordingAuditSink = AuditSink & {
-  readonly events: ReadonlyArray<AuditEvent>
-  clear(): void
-}
+  readonly events: readonly AuditEvent[];
+  clear(): void;
+};
 
 export function RecordingAuditSink(): RecordingAuditSink {
-  const events: AuditEvent[] = []
+  const events: AuditEvent[] = [];
   return {
     emit(event: AuditEvent) {
-      events.push(event)
+      events.push(event);
     },
     get events() {
-      return events
+      return events;
     },
     clear() {
-      events.length = 0
+      events.length = 0;
     },
-  }
+  };
 }
 
-export type FakeClockHandle = Clock & { advance(ms: number): void; set(ms: number): void }
+export type FakeClockHandle = Clock & {
+  advance(ms: number): void;
+  set(ms: number): void;
+};
 
 export function FakeClock(opts: { nowMs?: number } = {}): FakeClockHandle {
-  let current = opts.nowMs ?? 0
+  let current = opts.nowMs ?? 0;
   return {
     nowMs() {
-      return current
+      return current;
     },
     advance(ms: number) {
-      current += ms
+      current += ms;
     },
     set(ms: number) {
-      current = ms
+      current = ms;
     },
-  }
+  };
 }
 
 export function fixedRequestMetadata(
-  overrides: Partial<RequestMetadata> = {},
+  overrides: Partial<RequestMetadata> = {}
 ): RequestMetadata {
   return {
     ipAddress: overrides.ipAddress ?? "127.0.0.1",
     userAgent: overrides.userAgent ?? "test-agent",
-  }
+  };
 }

@@ -1,34 +1,35 @@
-import { initTRPC, TRPCError } from "@trpc/server"
-import type { FetchCreateContextFnOptions } from "@trpc/server/adapters/fetch"
-import superjson from "superjson"
-import { ZodError } from "zod"
-import { db } from "@/lib/db"
-import { auth } from "@/lib/auth"
+import { initTRPC, TRPCError } from "@trpc/server";
+import type { FetchCreateContextFnOptions } from "@trpc/server/adapters/fetch";
+import superjson from "superjson";
+import { ZodError } from "zod";
+import { db } from "@/lib/db/index.ts";
+import type {
+  CurrentUserState,
+  IdentityPorts,
+  RequestMetadata,
+} from "@/lib/identity/index.ts";
+import {
+  createServerIdentityPorts,
+  headersRequestMetadata,
+  resolveCurrentUser,
+} from "@/lib/identity/index.ts";
 
 export const createTRPCContext = async (opts: FetchCreateContextFnOptions) => {
-  const { req } = opts
-
-  // Get the session from better-auth
-  let session = null
-  try {
-    if (process.env.DATABASE_URL) {
-      session = await auth.api.getSession({
-        headers: req.headers as any,
-      })
-    }
-  } catch (error) {
-    // Session retrieval failed, user is not authenticated
-    console.log("Session retrieval failed:", error)
-  }
+  const { req } = opts;
+  const ports: IdentityPorts = createServerIdentityPorts(req);
+  const metadata: RequestMetadata = headersRequestMetadata(req);
+  const currentUser: CurrentUserState = await resolveCurrentUser(ports);
 
   return {
     db,
-    session,
     req,
-  }
-}
+    ports,
+    metadata,
+    currentUser,
+  };
+};
 
-export type Context = Awaited<ReturnType<typeof createTRPCContext>>
+export type Context = Awaited<ReturnType<typeof createTRPCContext>>;
 
 const t = initTRPC.context<Context>().create({
   transformer: superjson,
@@ -37,24 +38,28 @@ const t = initTRPC.context<Context>().create({
       ...shape,
       data: {
         ...shape.data,
-        zodError: error.cause instanceof ZodError ? error.cause.flatten() : null,
+        zodError:
+          error.cause instanceof ZodError ? error.cause.flatten() : null,
       },
-    }
+    };
   },
-})
+});
 
-export const createTRPCRouter = t.router
-export const publicProcedure = t.procedure
+export const createTRPCRouter = t.router;
+export const publicProcedure = t.procedure;
 
+// Minimal protected base. Most routers import the richer procedures from
+// lib/trpc/procedures.ts; this one is kept for compatibility with any callers
+// that prefer the lighter surface.
 export const protectedProcedure = t.procedure.use(({ ctx, next }) => {
-  if (!ctx.session?.user) {
-    throw new TRPCError({ code: "UNAUTHORIZED" })
+  if (ctx.currentUser.status !== "authenticated") {
+    throw new TRPCError({ code: "UNAUTHORIZED" });
   }
   return next({
     ctx: {
       ...ctx,
-      session: ctx.session,
-      user: ctx.session.user,
+      me: ctx.currentUser.user,
+      user: ctx.currentUser.user,
     },
-  })
-})
+  });
+});

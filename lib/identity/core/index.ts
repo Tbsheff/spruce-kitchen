@@ -1,5 +1,9 @@
 // Core public surface. Importers outside lib/identity/ should prefer the
 // top-level lib/identity entry, which composes adapters.
+
+export type { CurrentUser, CurrentUserState } from "./domain.ts";
+
+export { canPermission, resolveCurrentUser } from "./domain.ts";
 export type {
   AuditEvent,
   AuditSink,
@@ -12,7 +16,4 @@ export type {
   RequestMetadata,
   Role,
   RoleAuthorization,
-} from "./ports"
-
-export { canPermission, resolveCurrentUser } from "./domain"
-export type { CurrentUser, CurrentUserState } from "./domain"
+} from "./ports.ts";

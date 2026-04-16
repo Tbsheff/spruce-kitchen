@@ -7,8 +7,8 @@
 export type {
   CurrentUser,
   CurrentUserState,
-} from "./core/domain"
-
+} from "./core/domain.ts";
+export { canPermission, resolveCurrentUser } from "./core/domain.ts";
 export type {
   AuditEvent,
   AuditSink,
@@ -21,21 +21,19 @@ export type {
   RequestMetadata,
   Role,
   RoleAuthorization,
-} from "./core/ports"
+} from "./core/ports.ts";
 
-export { canPermission, resolveCurrentUser } from "./core/domain"
-
-import type { IdentityPorts, Role, RoleAuthorization } from "./core/ports"
-import { BetterAuthIdentityProvider } from "./adapters/prod/better-auth-identity"
-import { DrizzleAuthorizationStore } from "./adapters/prod/drizzle-authorization"
-import { SystemClock } from "./adapters/prod/system-clock"
+import { BetterAuthIdentityProvider } from "./adapters/prod/better-auth-identity.ts";
+import { DrizzleAuthorizationStore } from "./adapters/prod/drizzle-authorization.ts";
+import { SystemClock } from "./adapters/prod/system-clock.ts";
+import type { IdentityPorts, Role, RoleAuthorization } from "./core/ports.ts";
 
 // Build a fresh IdentityPorts for a single server request. Callers should
 // invoke this once at context-creation time; the returned ports share a
 // request-scoped permission cache so repeated resolveCurrentUser calls within
 // the same request avoid duplicate DB hits.
 export function createServerIdentityPorts(
-  req: Request | { headers: Headers },
+  req: Request | { headers: Headers }
 ): IdentityPorts {
   return {
     identity: BetterAuthIdentityProvider(req),
@@ -43,13 +41,13 @@ export function createServerIdentityPorts(
       requestCache: new Map<Role, Promise<RoleAuthorization>>(),
     }),
     clock: SystemClock(),
-  }
+  };
 }
 
 // Re-exports for consumers that want to name adapters directly (e.g., when
 // wiring an alternate environment or a background job).
-export { BetterAuthIdentityProvider } from "./adapters/prod/better-auth-identity"
-export { DrizzleAuthorizationStore } from "./adapters/prod/drizzle-authorization"
-export { SimpleAuditSink } from "./adapters/prod/simple-audit-sink"
-export { SystemClock } from "./adapters/prod/system-clock"
-export { headersRequestMetadata } from "./adapters/prod/request-metadata"
+export { BetterAuthIdentityProvider } from "./adapters/prod/better-auth-identity.ts";
+export { DrizzleAuthorizationStore } from "./adapters/prod/drizzle-authorization.ts";
+export { headersRequestMetadata } from "./adapters/prod/request-metadata.ts";
+export { SimpleAuditSink } from "./adapters/prod/simple-audit-sink.ts";
+export { SystemClock } from "./adapters/prod/system-clock.ts";
