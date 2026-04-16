@@ -235,23 +235,52 @@ export const inputSanitizationMiddleware = <
 // Deprecated function removed - use DatabaseRateLimiter.checkRateLimit instead
 
 /**
- * Content Security Policy helpers
+ * Content Security Policy — nonce-based with 'strict-dynamic'.
+ *
+ * Production: script-src = 'self' + nonce + 'strict-dynamic'. No
+ * 'unsafe-inline', no 'unsafe-eval'. Scripts loaded by a nonced script
+ * inherit trust transitively.
+ *
+ * Development: adds 'unsafe-eval' (Turbopack/HMR evaluates rebuilt
+ * modules via Function constructor) and ws:/wss: on connect-src (HMR
+ * websocket). style-src keeps 'unsafe-inline' — Tailwind and the
+ * Next.js font loader inject <style> tags that can't be nonced without
+ * forking the framework; the XSS surface is limited because style
+ * injection can't execute JS.
  */
-export const CSP_DIRECTIVES = {
-  "default-src": ["'self'"],
-  "script-src": ["'self'", "'wasm-unsafe-eval'"], // Next.js requires wasm-unsafe-eval for compilation
-  "style-src": ["'self'", "'unsafe-inline'"], // Next.js requires unsafe-inline for CSS-in-JS
-  "img-src": ["'self'", "data:", "https:"],
-  "font-src": ["'self'"],
-  "connect-src": ["'self'"],
-  "frame-src": ["'none'"],
-  "object-src": ["'none'"],
-  "base-uri": ["'self'"],
-  "form-action": ["'self'"],
-};
 
-export function generateCSPHeader(): string {
-  return Object.entries(CSP_DIRECTIVES)
-    .map(([directive, sources]) => `${directive} ${sources.join(" ")}`)
-    .join("; ");
+export const NONCE_HEADER = "x-nonce";
+
+function buildCSPSegments(isDev: boolean): { prefix: string; suffix: string } {
+  const scriptTail = isDev
+    ? "'strict-dynamic' 'wasm-unsafe-eval' 'unsafe-eval'"
+    : "'strict-dynamic' 'wasm-unsafe-eval'";
+  const connect = isDev ? "'self' ws: wss:" : "'self'";
+
+  return {
+    prefix: `default-src 'self'; script-src 'self' 'nonce-`,
+    suffix:
+      `' ${scriptTail}; ` +
+      `style-src 'self' 'unsafe-inline'; ` +
+      `img-src 'self' data: blob: https:; ` +
+      `font-src 'self' data:; ` +
+      `connect-src ${connect}; ` +
+      `frame-src 'none'; ` +
+      `object-src 'none'; ` +
+      `base-uri 'self'; ` +
+      `form-action 'self'; ` +
+      `frame-ancestors 'none'`,
+  };
+}
+
+const CSP_SEGMENTS = buildCSPSegments(process.env.NODE_ENV !== "production");
+
+export function generateCSPHeader(nonce: string): string {
+  return CSP_SEGMENTS.prefix + nonce + CSP_SEGMENTS.suffix;
+}
+
+export function generateCSPNonce(): string {
+  const bytes = new Uint8Array(16);
+  crypto.getRandomValues(bytes);
+  return btoa(String.fromCharCode(...bytes)).replace(/=+$/, "");
 }

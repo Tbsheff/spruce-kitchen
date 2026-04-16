@@ -8,7 +8,7 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card.tsx";
-import Footer from "@/components/ui/footer.tsx";
+import { Footer } from "@/components/ui/footer.tsx";
 import { Header } from "@/components/ui/header.tsx";
 import { Input } from "@/components/ui/input.tsx";
 import { Textarea } from "@/components/ui/textarea.tsx";

@@ -1,6 +1,57 @@
 import type { NextRequest } from "next/server";
 import { NextResponse } from "next/server";
-import { generateCSPHeader } from "@/lib/security/input-validation.ts";
+import {
+  NONCE_HEADER,
+  generateCSPHeader,
+  generateCSPNonce,
+} from "@/lib/security/input-validation.ts";
+
+/**
+ * Writes baseline security headers (safe for every response type: HTML,
+ * JSON, redirects, error bodies). Does NOT set CSP — CSP is HTML-only.
+ */
+function setBaselineHeaders(
+  response: NextResponse,
+  isProduction: boolean,
+): NextResponse {
+  response.headers.set("X-Frame-Options", "DENY");
+  response.headers.set("X-Content-Type-Options", "nosniff");
+  response.headers.set("Referrer-Policy", "strict-origin-when-cross-origin");
+  response.headers.set(
+    "Permissions-Policy",
+    "camera=(), microphone=(), location=()",
+  );
+
+  if (isProduction) {
+    response.headers.set(
+      "Strict-Transport-Security",
+      "max-age=31536000; includeSubDomains; preload",
+    );
+  }
+
+  return response;
+}
+
+/**
+ * Builds a NextResponse for a downstream HTML route with the nonce threaded
+ * onto both the forwarded request headers (so server components can read
+ * it via next/headers and Next.js can stamp <script nonce=...>) and the
+ * response's CSP header (so the browser trusts those scripts).
+ */
+function buildSecureResponse(
+  request: NextRequest,
+  nonce: string,
+  isProduction: boolean,
+): NextResponse {
+  const forwardedHeaders = new Headers(request.headers);
+  forwardedHeaders.set(NONCE_HEADER, nonce);
+  const response = NextResponse.next({
+    request: { headers: forwardedHeaders },
+  });
+
+  response.headers.set("Content-Security-Policy", generateCSPHeader(nonce));
+  return setBaselineHeaders(response, isProduction);
+}
 
 // Define protected and public routes
 const protectedRoutes = ["/onboarding", "/dashboard", "/profile", "/settings"];
@@ -23,15 +74,17 @@ export async function middleware(request: NextRequest) {
     DATABASE_URL: process.env.DATABASE_URL,
     NODE_ENV: process.env.NODE_ENV,
   };
+  const isProduction = env.NODE_ENV === "production";
+  const nonce = generateCSPNonce();
 
-  // Allow API routes and static files to pass through
+  // Allow API routes and static files to pass through with baseline headers
   if (
     pathname.startsWith("/api/") ||
     pathname.startsWith("/_next/") ||
     pathname.startsWith("/favicon.ico") ||
     pathname.includes(".")
   ) {
-    return NextResponse.next();
+    return setBaselineHeaders(NextResponse.next(), isProduction);
   }
 
   // Check if the route is public
@@ -66,39 +119,19 @@ export async function middleware(request: NextRequest) {
 
     // Public routes can still work without database
     if (isPublicRoute) {
-      const response = NextResponse.next();
-
-      // SECURITY: Add security headers even when database not configured
-      response.headers.set("Content-Security-Policy", generateCSPHeader());
-      response.headers.set("X-Frame-Options", "DENY");
-      response.headers.set("X-Content-Type-Options", "nosniff");
-      response.headers.set(
-        "Referrer-Policy",
-        "strict-origin-when-cross-origin"
-      );
-      response.headers.set(
-        "Permissions-Policy",
-        "camera=(), microphone=(), location=()"
-      );
-      response.headers.set("X-XSS-Protection", "1; mode=block");
-
-      if (env.NODE_ENV === "production") {
-        response.headers.set(
-          "Strict-Transport-Security",
-          "max-age=31536000; includeSubDomains; preload"
-        );
-      }
-
-      return response;
+      return buildSecureResponse(request, nonce, isProduction);
     }
 
     // Default to blocking access with generic error message
-    return new NextResponse(
-      "Service temporarily unavailable. Please try again later.",
-      {
-        status: 503,
-        headers: { "Content-Type": "text/plain" },
-      }
+    return setBaselineHeaders(
+      new NextResponse(
+        "Service temporarily unavailable. Please try again later.",
+        {
+          status: 503,
+          headers: { "Content-Type": "text/plain" },
+        },
+      ),
+      isProduction,
     );
   }
 
@@ -123,29 +156,7 @@ export async function middleware(request: NextRequest) {
       return NextResponse.redirect(loginUrl);
     }
 
-    // Allow the request to continue with security headers
-    const response = NextResponse.next();
-
-    // SECURITY: Add comprehensive security headers
-    response.headers.set("Content-Security-Policy", generateCSPHeader());
-    response.headers.set("X-Frame-Options", "DENY");
-    response.headers.set("X-Content-Type-Options", "nosniff");
-    response.headers.set("Referrer-Policy", "strict-origin-when-cross-origin");
-    response.headers.set(
-      "Permissions-Policy",
-      "camera=(), microphone=(), location=()"
-    );
-    response.headers.set("X-XSS-Protection", "1; mode=block");
-
-    // HSTS header for production
-    if (env.NODE_ENV === "production") {
-      response.headers.set(
-        "Strict-Transport-Security",
-        "max-age=31536000; includeSubDomains; preload"
-      );
-    }
-
-    return response;
+    return buildSecureResponse(request, nonce, isProduction);
   } catch (error) {
     console.error("Middleware auth check failed:", error);
 
@@ -156,28 +167,7 @@ export async function middleware(request: NextRequest) {
       return NextResponse.redirect(loginUrl);
     }
 
-    // For public routes, continue even if auth check fails - but still add security headers
-    const response = NextResponse.next();
-
-    // SECURITY: Add security headers even for public routes
-    response.headers.set("Content-Security-Policy", generateCSPHeader());
-    response.headers.set("X-Frame-Options", "DENY");
-    response.headers.set("X-Content-Type-Options", "nosniff");
-    response.headers.set("Referrer-Policy", "strict-origin-when-cross-origin");
-    response.headers.set(
-      "Permissions-Policy",
-      "camera=(), microphone=(), location=()"
-    );
-    response.headers.set("X-XSS-Protection", "1; mode=block");
-
-    if (env.NODE_ENV === "production") {
-      response.headers.set(
-        "Strict-Transport-Security",
-        "max-age=31536000; includeSubDomains; preload"
-      );
-    }
-
-    return response;
+    return buildSecureResponse(request, nonce, isProduction);
   }
 }
 
