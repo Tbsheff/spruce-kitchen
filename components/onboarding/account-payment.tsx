@@ -1,29 +1,29 @@
-"use client"
+"use client";
 
-import { AuthCard } from "./auth-card"
-import { PaymentCard } from "./payment-card"
-import { OrderSummary } from "./order-summary"
+import { AuthCard } from "./auth-card.tsx";
+import { OrderSummary } from "./order-summary.tsx";
+import { PaymentCard } from "./payment-card.tsx";
 
-type AuthMode = "login" | "signup"
-type AuthStep = "auth" | "payment"
-type Size = "small" | "medium"
+type AuthMode = "login" | "signup";
+type AuthStep = "auth" | "payment";
+type Size = "small" | "medium";
 
 interface AccountPaymentProps {
-  authStep: AuthStep
-  authMode: AuthMode
-  email: string
-  password: string
-  firstName: string
-  lastName: string
-  paymentMethod?: string
-  size?: Size
-  onAuthModeChange: (mode: AuthMode) => void
-  onEmailChange: (email: string) => void
-  onPasswordChange: (password: string) => void
-  onFirstNameChange: (firstName: string) => void
-  onLastNameChange: (lastName: string) => void
-  onPaymentMethodChange: (method: string) => void
-  onAuthSubmit: () => void
+  authMode: AuthMode;
+  authStep: AuthStep;
+  email: string;
+  firstName: string;
+  lastName: string;
+  onAuthModeChange: (mode: AuthMode) => void;
+  onAuthSubmit: () => void;
+  onEmailChange: (email: string) => void;
+  onFirstNameChange: (firstName: string) => void;
+  onLastNameChange: (lastName: string) => void;
+  onPasswordChange: (password: string) => void;
+  onPaymentMethodChange: (method: string) => void;
+  password: string;
+  paymentMethod?: string;
+  size?: Size;
 }
 
 export function AccountPayment({
@@ -44,28 +44,34 @@ export function AccountPayment({
   onAuthSubmit,
 }: AccountPaymentProps) {
   return (
-    <section aria-label="Account and payment" className="max-w-2xl mx-auto space-y-6">
+    <section
+      aria-label="Account and payment"
+      className="mx-auto max-w-2xl space-y-6"
+    >
       <AuthCard
         authMode={authMode}
         email={email}
-        password={password}
         firstName={firstName}
-        lastName={lastName}
         isComplete={authStep === "payment"}
+        lastName={lastName}
         onAuthModeChange={onAuthModeChange}
         onEmailChange={onEmailChange}
-        onPasswordChange={onPasswordChange}
         onFirstNameChange={onFirstNameChange}
         onLastNameChange={onLastNameChange}
+        onPasswordChange={onPasswordChange}
         onSubmit={onAuthSubmit}
+        password={password}
       />
 
       {authStep === "payment" && (
         <>
-          <PaymentCard paymentMethod={paymentMethod} onPaymentMethodChange={onPaymentMethodChange} />
-          <OrderSummary size={size} />
+          <PaymentCard
+            onPaymentMethodChange={onPaymentMethodChange}
+            {...(paymentMethod !== undefined && { paymentMethod })}
+          />
+          <OrderSummary {...(size !== undefined && { size })} />
         </>
       )}
     </section>
-  )
+  );
 }

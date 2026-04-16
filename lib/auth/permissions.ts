@@ -1,6 +1,6 @@
 /**
  * Permission Constants and Utilities
- * 
+ *
  * This file defines all available permissions in the system and provides
  * utility functions for working with permissions.
  */
@@ -12,7 +12,7 @@ export const USER_PERMISSIONS = {
   READ_ALL: "user:read:all",
   WRITE_ALL: "user:write:all",
   DELETE_ALL: "user:delete:all",
-} as const
+} as const;
 
 // Order permissions
 export const ORDER_PERMISSIONS = {
@@ -21,7 +21,7 @@ export const ORDER_PERMISSIONS = {
   READ_ALL: "order:read:all",
   WRITE_ALL: "order:write:all",
   DELETE_ALL: "order:delete:all",
-} as const
+} as const;
 
 // Meal plan permissions
 export const MEALPLAN_PERMISSIONS = {
@@ -30,7 +30,7 @@ export const MEALPLAN_PERMISSIONS = {
   READ_ALL: "mealplan:read:all",
   WRITE_ALL: "mealplan:write:all",
   DELETE_ALL: "mealplan:delete:all",
-} as const
+} as const;
 
 // Admin permissions
 export const ADMIN_PERMISSIONS = {
@@ -38,7 +38,7 @@ export const ADMIN_PERMISSIONS = {
   REPORTS: "admin:reports",
   USERS: "admin:users",
   SYSTEM: "admin:system",
-} as const
+} as const;
 
 // All permissions combined
 export const PERMISSIONS = {
@@ -46,7 +46,7 @@ export const PERMISSIONS = {
   ORDER: ORDER_PERMISSIONS,
   MEALPLAN: MEALPLAN_PERMISSIONS,
   ADMIN: ADMIN_PERMISSIONS,
-} as const
+} as const;
 
 // Permission groups for easier management
 export const CUSTOMER_PERMISSIONS = [
@@ -56,7 +56,7 @@ export const CUSTOMER_PERMISSIONS = [
   ORDER_PERMISSIONS.WRITE_OWN,
   MEALPLAN_PERMISSIONS.READ_OWN,
   MEALPLAN_PERMISSIONS.WRITE_OWN,
-] as const
+] as const;
 
 export const ADMIN_PERMISSION_SET = [
   ...CUSTOMER_PERMISSIONS,
@@ -68,7 +68,7 @@ export const ADMIN_PERMISSION_SET = [
   ADMIN_PERMISSIONS.DASHBOARD,
   ADMIN_PERMISSIONS.REPORTS,
   ADMIN_PERMISSIONS.USERS,
-] as const
+] as const;
 
 export const SUPER_ADMIN_PERMISSIONS = [
   ...ADMIN_PERMISSION_SET,
@@ -77,91 +77,114 @@ export const SUPER_ADMIN_PERMISSIONS = [
   ORDER_PERMISSIONS.DELETE_ALL,
   MEALPLAN_PERMISSIONS.DELETE_ALL,
   ADMIN_PERMISSIONS.SYSTEM,
-] as const
+] as const;
+
+/**
+ * Type-safe permission strings
+ */
+export type UserPermission =
+  (typeof USER_PERMISSIONS)[keyof typeof USER_PERMISSIONS];
+export type OrderPermission =
+  (typeof ORDER_PERMISSIONS)[keyof typeof ORDER_PERMISSIONS];
+export type MealPlanPermission =
+  (typeof MEALPLAN_PERMISSIONS)[keyof typeof MEALPLAN_PERMISSIONS];
+export type AdminPermission =
+  (typeof ADMIN_PERMISSIONS)[keyof typeof ADMIN_PERMISSIONS];
+export type Permission =
+  | UserPermission
+  | OrderPermission
+  | MealPlanPermission
+  | AdminPermission;
 
 /**
  * Check if a permission is resource-specific (contains :own or :all)
  */
-export function isResourcePermission(permission: string): boolean {
-  return permission.includes(":own") || permission.includes(":all")
+export function isResourcePermission(permission: Permission): boolean {
+  return permission.includes(":own") || permission.includes(":all");
 }
 
 /**
  * Get the resource type from a permission string
  */
-export function getPermissionResource(permission: string): string | null {
-  const parts = permission.split(":")
-  return parts.length >= 2 ? parts[0] : null
+export function getPermissionResource(permission: Permission): string | null {
+  const parts = permission.split(":");
+  return parts.length >= 2 ? parts[0] : null;
 }
 
 /**
  * Get the action from a permission string
  */
-export function getPermissionAction(permission: string): string | null {
-  const parts = permission.split(":")
-  return parts.length >= 2 ? parts[1] : null
+export function getPermissionAction(permission: Permission): string | null {
+  const parts = permission.split(":");
+  return parts.length >= 2 ? parts[1] : null;
 }
 
 /**
  * Get the scope from a permission string (own, all, or null)
  */
-export function getPermissionScope(permission: string): "own" | "all" | null {
-  const parts = permission.split(":")
+export function getPermissionScope(
+  permission: Permission
+): "own" | "all" | null {
+  const parts = permission.split(":");
   if (parts.length >= 3) {
-    const scope = parts[2]
-    return scope === "own" || scope === "all" ? scope : null
+    const scope = parts[2];
+    return scope === "own" || scope === "all" ? scope : null;
   }
-  return null
+  return null;
 }
 
 /**
- * Convert an "own" permission to its "all" equivalent
+ * Convert an "own" permission to its "all" equivalent. Permissions that don't
+ * contain ":own" are returned unchanged; the cast is safe because every
+ * `:own` member of `Permission` has a matching `:all` sibling.
  */
-export function toAllPermission(permission: string): string {
-  return permission.replace(":own", ":all")
+export function toAllPermission(permission: Permission): Permission {
+  return permission.replace(":own", ":all") as Permission;
 }
 
 /**
- * Convert an "all" permission to its "own" equivalent
+ * Convert an "all" permission to its "own" equivalent. Permissions that don't
+ * contain ":all" are returned unchanged; the cast is safe because every
+ * `:all` member of `Permission` has a matching `:own` sibling.
  */
-export function toOwnPermission(permission: string): string {
-  return permission.replace(":all", ":own")
+export function toOwnPermission(permission: Permission): Permission {
+  return permission.replace(":all", ":own") as Permission;
 }
 
 /**
  * Check if two permissions are related (same resource and action, different scope)
  */
-export function areRelatedPermissions(perm1: string, perm2: string): boolean {
-  const resource1 = getPermissionResource(perm1)
-  const resource2 = getPermissionResource(perm2)
-  const action1 = getPermissionAction(perm1)
-  const action2 = getPermissionAction(perm2)
-  
-  return resource1 === resource2 && action1 === action2
+export function areRelatedPermissions(
+  perm1: Permission,
+  perm2: Permission
+): boolean {
+  const resource1 = getPermissionResource(perm1);
+  const resource2 = getPermissionResource(perm2);
+  const action1 = getPermissionAction(perm1);
+  const action2 = getPermissionAction(perm2);
+
+  return resource1 === resource2 && action1 === action2;
 }
 
 /**
  * Permission hierarchy: "all" permissions include "own" permissions
  */
-export function permissionIncludes(hasPermission: string, requiredPermission: string): boolean {
+export function permissionIncludes(
+  hasPermission: Permission,
+  requiredPermission: Permission
+): boolean {
   // Exact match
   if (hasPermission === requiredPermission) {
-    return true
+    return true;
   }
-  
-  // Check if "all" permission covers "own" permission
-  if (requiredPermission.endsWith(":own") && hasPermission === toAllPermission(requiredPermission)) {
-    return true
-  }
-  
-  return false
-}
 
-/**
- * Type-safe permission strings
- */
-export type UserPermission = typeof USER_PERMISSIONS[keyof typeof USER_PERMISSIONS]
-export type OrderPermission = typeof ORDER_PERMISSIONS[keyof typeof ORDER_PERMISSIONS]
-export type MealPlanPermission = typeof MEALPLAN_PERMISSIONS[keyof typeof MEALPLAN_PERMISSIONS]
-export type AdminPermission = typeof ADMIN_PERMISSIONS[keyof typeof ADMIN_PERMISSIONS]
-export type Permission = UserPermission | OrderPermission | MealPlanPermission | AdminPermission
+  // Check if "all" permission covers "own" permission
+  if (
+    requiredPermission.endsWith(":own") &&
+    hasPermission === toAllPermission(requiredPermission)
+  ) {
+    return true;
+  }
+
+  return false;
+}

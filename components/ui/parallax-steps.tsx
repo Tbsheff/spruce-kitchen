@@ -66,22 +66,21 @@ export function ParallaxSteps({
         setCurrentStep(activeStep);
         // Desktop: Original sticky parallax logic
       } else if (containerRect.top <= 0 && containerRect.bottom > windowHeight) {
-          const totalScrollDistance = containerRect.height - windowHeight;
-          const scrolledDistance = Math.abs(containerRect.top);
-          const progress = Math.min(1, scrolledDistance / totalScrollDistance);
+        const totalScrollDistance = containerRect.height - windowHeight;
+        const scrolledDistance = Math.abs(containerRect.top);
+        const progress = Math.min(1, scrolledDistance / totalScrollDistance);
 
-          const stepIndex = Math.floor(progress * steps.length);
-          const clampedIndex = Math.max(
-            0,
-            Math.min(steps.length - 1, stepIndex)
-          );
+        const stepIndex = Math.floor(progress * steps.length);
+        const clampedIndex = Math.max(
+          0,
+          Math.min(steps.length - 1, stepIndex)
+        );
 
-          setCurrentStep(clampedIndex);
-        } else if (containerRect.top > 0) {
-          setCurrentStep(0);
-        } else {
-          setCurrentStep(steps.length - 1);
-        }
+        setCurrentStep(clampedIndex);
+      } else if (containerRect.top > 0) {
+        setCurrentStep(0);
+      } else {
+        setCurrentStep(steps.length - 1);
       }
     };
 

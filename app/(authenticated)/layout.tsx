@@ -1,22 +1,25 @@
-"use client"
-
-import type React from "react"
+"use client";
 
 import {
-  SidebarProvider,
-  Sidebar,
-  SidebarContent,
-  SidebarHeader,
-  SidebarFooter,
-  SidebarMenu,
-  SidebarMenuItem,
-  SidebarMenuButton,
-  SidebarGroup,
-  SidebarGroupLabel,
-  SidebarTrigger,
-} from "@/components/ui/sidebar"
-import { Button } from "@/components/ui/button"
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
+  Bell,
+  CreditCard,
+  Home,
+  LogOut,
+  Package,
+  Settings,
+  ShoppingCart,
+  User,
+} from "lucide-react";
+import Link from "next/link";
+import { usePathname } from "next/navigation";
+import type React from "react";
+import { AuthGuard } from "@/components/auth/auth-guard.tsx";
+import {
+  Avatar,
+  AvatarFallback,
+  AvatarImage,
+} from "@/components/ui/avatar.tsx";
+import { Button } from "@/components/ui/button.tsx";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -24,12 +27,21 @@ import {
   DropdownMenuLabel,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu"
-import { useAuth } from "@/lib/auth-context"
-import { AuthGuard } from "@/components/auth/auth-guard"
-import Link from "next/link"
-import { usePathname } from "next/navigation"
-import { Home, Package, Settings, ShoppingCart, User, LogOut, Bell, CreditCard } from "lucide-react"
+} from "@/components/ui/dropdown-menu.tsx";
+import {
+  Sidebar,
+  SidebarContent,
+  SidebarFooter,
+  SidebarGroup,
+  SidebarGroupLabel,
+  SidebarHeader,
+  SidebarMenu,
+  SidebarMenuButton,
+  SidebarMenuItem,
+  SidebarProvider,
+  SidebarTrigger,
+} from "@/components/ui/sidebar.tsx";
+import { useAuth } from "@/lib/auth-context.tsx";
 
 const navigation = [
   {
@@ -48,19 +60,19 @@ const navigation = [
       { title: "Billing", href: "/billing", icon: CreditCard },
     ],
   },
-]
+] as const;
 
 export default function AuthenticatedLayout({
   children,
-}: {
-  children: React.ReactNode
-}) {
+}: Readonly<{
+  children: React.ReactNode;
+}>) {
   return (
     <AuthGuard>
       <SidebarProvider>
         <div className="flex min-h-screen w-full">
           <AppSidebar />
-          <main className="flex-1 flex flex-col">
+          <main className="flex flex-1 flex-col">
             <header className="sticky top-0 z-40 border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
               <div className="flex h-14 items-center gap-4 px-4 lg:px-6">
                 <SidebarTrigger className="lg:hidden" />
@@ -74,16 +86,19 @@ export default function AuthenticatedLayout({
         </div>
       </SidebarProvider>
     </AuthGuard>
-  )
+  );
 }
 
 function AppSidebar() {
-  const pathname = usePathname()
+  const pathname = usePathname();
 
   return (
     <Sidebar>
       <SidebarHeader className="border-b px-6 py-4">
-        <Link href="/dashboard" className="flex items-center gap-2 font-semibold">
+        <Link
+          className="flex items-center gap-2 font-semibold"
+          href="/dashboard"
+        >
           <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary text-primary-foreground">
             S
           </div>
@@ -98,7 +113,11 @@ function AppSidebar() {
             <SidebarMenu>
               {group.items.map((item) => (
                 <SidebarMenuItem key={item.href}>
-                  <SidebarMenuButton asChild isActive={pathname === item.href} className="w-full justify-start">
+                  <SidebarMenuButton
+                    asChild
+                    className="w-full justify-start"
+                    isActive={pathname === item.href}
+                  >
                     <Link href={item.href}>
                       <item.icon className="h-4 w-4" />
                       <span>{item.title}</span>
@@ -112,47 +131,53 @@ function AppSidebar() {
       </SidebarContent>
 
       <SidebarFooter className="border-t p-4">
-        <div className="text-xs text-muted-foreground">© 2024 Spruce Kitchen</div>
+        <div className="text-muted-foreground text-xs">
+          © 2024 Spruce Kitchen
+        </div>
       </SidebarFooter>
     </Sidebar>
-  )
+  );
 }
 
 function NotificationButton() {
   return (
-    <Button variant="ghost" size="icon" className="h-8 w-8">
+    <Button className="h-8 w-8" size="icon" variant="ghost">
       <Bell className="h-4 w-4" />
       <span className="sr-only">Notifications</span>
     </Button>
-  )
+  );
 }
 
 function UserMenu() {
-  const { user, signOut } = useAuth()
+  const { user, signOut } = useAuth();
 
   const handleSignOut = async () => {
     try {
-      await signOut()
+      await signOut();
     } catch (error) {
-      console.error("Sign out error:", error)
+      console.error("Sign out error:", error);
     }
-  }
+  };
 
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
-        <Button variant="ghost" className="relative h-8 w-8 rounded-full">
+        <Button className="relative h-8 w-8 rounded-full" variant="ghost">
           <Avatar className="h-8 w-8">
-            <AvatarImage src={user?.image || ""} alt={user?.name || ""} />
-            <AvatarFallback>{user?.name?.charAt(0)?.toUpperCase() || "U"}</AvatarFallback>
+            <AvatarImage alt={user?.name || ""} src={user?.image ?? ""} />
+            <AvatarFallback>
+              {user?.name?.charAt(0)?.toUpperCase() || "U"}
+            </AvatarFallback>
           </Avatar>
         </Button>
       </DropdownMenuTrigger>
-      <DropdownMenuContent className="w-56" align="end" forceMount>
+      <DropdownMenuContent align="end" className="w-56" forceMount>
         <DropdownMenuLabel className="font-normal">
           <div className="flex flex-col space-y-1">
-            <p className="text-sm font-medium leading-none">{user?.name}</p>
-            <p className="text-xs leading-none text-muted-foreground">{user?.email}</p>
+            <p className="font-medium text-sm leading-none">{user?.name}</p>
+            <p className="text-muted-foreground text-xs leading-none">
+              {user?.email}
+            </p>
           </div>
         </DropdownMenuLabel>
         <DropdownMenuSeparator />
@@ -175,5 +200,5 @@ function UserMenu() {
         </DropdownMenuItem>
       </DropdownMenuContent>
     </DropdownMenu>
-  )
+  );
 }

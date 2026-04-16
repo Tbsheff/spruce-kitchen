@@ -1,100 +1,117 @@
-"use client"
+"use client";
 
-import type React from "react"
+import { ArrowLeft, Mail } from "lucide-react";
+import Link from "next/link";
+import { useRouter } from "next/navigation";
+import type React from "react";
+import { useState } from "react";
+import { Alert, AlertDescription } from "@/components/ui/alert.tsx";
+import { Button } from "@/components/ui/button.tsx";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card.tsx";
+import Footer from "@/components/ui/footer.tsx";
+import { Header } from "@/components/ui/header.tsx";
+import { Input } from "@/components/ui/input.tsx";
+import { Label } from "@/components/ui/label.tsx";
+import { authClient } from "@/lib/auth-client.ts";
 
-import { useState } from "react"
-import { useRouter } from "next/navigation"
-import Link from "next/link"
-import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
-import { Label } from "@/components/ui/label"
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { Alert, AlertDescription } from "@/components/ui/alert"
-import { ArrowLeft, Mail } from "lucide-react"
-import { authClient } from "@/lib/auth-client"
-import { Header } from "@/components/ui/header"
-import Footer from "@/components/ui/footer"
+type SubmitState =
+  | { kind: "idle" }
+  | { kind: "loading" }
+  | { kind: "error"; message: string }
+  | { kind: "success"; message?: string };
 
 export default function ForgotPasswordPage() {
-  const [email, setEmail] = useState("")
-  const [isLoading, setIsLoading] = useState(false)
-  const [message, setMessage] = useState("")
-  const [error, setError] = useState("")
-  const router = useRouter()
+  const [email, setEmail] = useState("");
+  const [submitState, setSubmitState] = useState<SubmitState>({ kind: "idle" });
+  const _router = useRouter();
+
+  const isLoading = submitState.kind === "loading";
+  const errorMessage =
+    submitState.kind === "error" ? submitState.message : null;
+  const successMessage =
+    submitState.kind === "success" ? submitState.message : null;
 
   const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault()
-    setIsLoading(true)
-    setError("")
-    setMessage("")
+    e.preventDefault();
+    setSubmitState({ kind: "loading" });
 
     try {
       await authClient.forgetPassword({
         email,
         redirectTo: "/reset-password",
-      })
-      setMessage("Password reset email sent! Check your inbox.")
-    } catch (err: any) {
-      setError(err.message || "Failed to send reset email")
-    } finally {
-      setIsLoading(false)
+      });
+      setSubmitState({
+        kind: "success",
+        message: "Password reset email sent! Check your inbox.",
+      });
+    } catch (err) {
+      const message =
+        err instanceof Error ? err.message : "Failed to send reset email";
+      setSubmitState({ kind: "error", message });
     }
-  }
+  };
 
   return (
-    <div className="min-h-screen flex flex-col">
+    <div className="flex min-h-screen flex-col">
       <Header />
 
-      <main className="flex-1 flex items-center justify-center px-4 py-12">
+      <main className="flex flex-1 items-center justify-center px-4 py-12">
         <Card className="w-full max-w-md">
           <CardHeader className="space-y-1">
             <div className="flex items-center gap-2">
               <Link href="/login">
-                <Button variant="ghost" size="sm">
+                <Button size="sm" variant="ghost">
                   <ArrowLeft className="h-4 w-4" />
                 </Button>
               </Link>
               <CardTitle className="text-2xl">Forgot Password</CardTitle>
             </div>
             <CardDescription>
-              Enter your email address and we'll send you a link to reset your password.
+              Enter your email address and we'll send you a link to reset your
+              password.
             </CardDescription>
           </CardHeader>
           <CardContent>
-            <form onSubmit={handleSubmit} className="space-y-4">
+            <form className="space-y-4" onSubmit={handleSubmit}>
               <div className="space-y-2">
                 <Label htmlFor="email">Email</Label>
                 <Input
                   id="email"
-                  type="email"
-                  placeholder="Enter your email"
-                  value={email}
                   onChange={(e) => setEmail(e.target.value)}
+                  placeholder="Enter your email"
                   required
+                  type="email"
+                  value={email}
                 />
               </div>
 
-              {error && (
+              {errorMessage && (
                 <Alert variant="destructive">
-                  <AlertDescription>{error}</AlertDescription>
+                  <AlertDescription>{errorMessage}</AlertDescription>
                 </Alert>
               )}
 
-              {message && (
+              {successMessage && (
                 <Alert>
                   <Mail className="h-4 w-4" />
-                  <AlertDescription>{message}</AlertDescription>
+                  <AlertDescription>{successMessage}</AlertDescription>
                 </Alert>
               )}
 
-              <Button type="submit" className="w-full" disabled={isLoading}>
+              <Button className="w-full" disabled={isLoading} type="submit">
                 {isLoading ? "Sending..." : "Send Reset Email"}
               </Button>
             </form>
 
             <div className="mt-4 text-center text-sm">
               Remember your password?{" "}
-              <Link href="/login" className="text-primary hover:underline">
+              <Link className="text-primary hover:underline" href="/login">
                 Sign in
               </Link>
             </div>
@@ -104,5 +121,5 @@ export default function ForgotPasswordPage() {
 
       <Footer />
     </div>
-  )
+  );
 }

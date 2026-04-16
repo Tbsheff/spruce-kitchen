@@ -1,18 +1,17 @@
-"use client"
+"use client";
 
-import type React from "react"
-
-import { useState } from "react"
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
-import { Label } from "@/components/ui/label"
-import { Textarea } from "@/components/ui/textarea"
-import { Switch } from "@/components/ui/switch"
-import { Badge } from "@/components/ui/badge"
-import { Separator } from "@/components/ui/separator"
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import {
+  Bell,
+  CreditCard,
+  MapPin,
+  Pause,
+  Save,
+  User,
+  Utensils,
+  X,
+} from "lucide-react";
+import type React from "react";
+import { useState } from "react";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -23,180 +22,310 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
   AlertDialogTrigger,
-} from "@/components/ui/alert-dialog"
-import { toast } from "@/hooks/use-toast"
-import { trpc } from "@/lib/trpc/client"
-import { useAuth } from "@/lib/auth-context"
-import { User, MapPin, Utensils, CreditCard, Bell, Save, Pause, X } from "lucide-react"
+} from "@/components/ui/alert-dialog.tsx";
+import { Badge } from "@/components/ui/badge.tsx";
+import { Button } from "@/components/ui/button.tsx";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card.tsx";
+import { Input } from "@/components/ui/input.tsx";
+import { Label } from "@/components/ui/label.tsx";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select.tsx";
+import { Separator } from "@/components/ui/separator.tsx";
+import { Switch } from "@/components/ui/switch.tsx";
+import {
+  Tabs,
+  TabsContent,
+  TabsList,
+  TabsTrigger,
+} from "@/components/ui/tabs.tsx";
+import { Textarea } from "@/components/ui/textarea.tsx";
+import { toast } from "@/hooks/use-toast.ts";
+import { useAuth } from "@/lib/auth-context.tsx";
+import { trpc } from "@/lib/trpc/client.ts";
+
+type ServingSize = "small" | "medium" | "large";
+
+type AccountFields = {
+  name: string;
+  email: string;
+};
+
+type PasswordFields = {
+  currentPassword: string;
+  newPassword: string;
+  confirmPassword: string;
+};
+
+type FormData = AccountFields & PasswordFields;
+
+type AddressData = {
+  street: string;
+  city: string;
+  state: string;
+  zipCode: string;
+  country: string;
+  instructions: string;
+};
+
+type PreferencesData = {
+  dietaryRestrictions: string[];
+  allergies: string[];
+  servingSize: ServingSize;
+};
+
+const DEFAULT_ADDRESS_DATA: AddressData = {
+  street: "",
+  city: "",
+  state: "",
+  zipCode: "",
+  country: "United States",
+  instructions: "",
+};
+
+const DEFAULT_PREFERENCES: PreferencesData = {
+  dietaryRestrictions: [],
+  allergies: [],
+  servingSize: "medium",
+};
 
 export default function SettingsPage() {
-  const { user } = useAuth()
-  const { data: profile } = trpc.user.getProfile.useQuery()
-  const { data: mealPlans } = trpc.mealPlan.getUserPlans.useQuery()
+  const { user } = useAuth();
+  const { data: profile } = trpc.user.getProfile.useQuery();
+  const { data: mealPlans } = trpc.mealPlan.getUserPlans.useQuery();
 
   const updateProfile = trpc.user.updateProfile.useMutation({
     onSuccess: () => {
       toast({
         title: "Profile updated",
         description: "Your profile has been updated successfully.",
-      })
+      });
     },
     onError: (error) => {
       toast({
         title: "Error",
         description: error.message,
         variant: "destructive",
-      })
+      });
     },
-  })
+  });
 
   const updatePreferences = trpc.user.updatePreferences.useMutation({
     onSuccess: () => {
       toast({
         title: "Preferences updated",
         description: "Your dietary preferences have been updated.",
-      })
+      });
     },
-  })
+  });
 
   const updateAddress = trpc.user.updateDeliveryAddress.useMutation({
     onSuccess: () => {
       toast({
         title: "Address updated",
         description: "Your delivery address has been updated.",
-      })
+      });
     },
-  })
+  });
 
   const cancelMealPlan = trpc.mealPlan.cancel.useMutation({
     onSuccess: () => {
       toast({
         title: "Subscription cancelled",
         description: "Your meal plan has been cancelled.",
-      })
+      });
     },
-  })
+  });
 
-  const [formData, setFormData] = useState({
-    name: user?.name || "",
-    email: user?.email || "",
+  const hydratedAccountData: AccountFields = {
+    name: profile?.name ?? user?.name ?? "",
+    email: profile?.email ?? user?.email ?? "",
+  };
+
+  const hydratedAddressData: AddressData = {
+    street: profile?.deliveryAddress?.street ?? DEFAULT_ADDRESS_DATA.street,
+    city: profile?.deliveryAddress?.city ?? DEFAULT_ADDRESS_DATA.city,
+    state: profile?.deliveryAddress?.state ?? DEFAULT_ADDRESS_DATA.state,
+    zipCode: profile?.deliveryAddress?.zipCode ?? DEFAULT_ADDRESS_DATA.zipCode,
+    country: profile?.deliveryAddress?.country ?? DEFAULT_ADDRESS_DATA.country,
+    instructions:
+      profile?.deliveryAddress?.instructions ??
+      DEFAULT_ADDRESS_DATA.instructions,
+  };
+
+  const hydratedPreferences: PreferencesData = {
+    dietaryRestrictions:
+      profile?.preferences?.dietaryRestrictions ??
+      DEFAULT_PREFERENCES.dietaryRestrictions,
+    allergies: profile?.preferences?.allergies ?? DEFAULT_PREFERENCES.allergies,
+    servingSize:
+      profile?.preferences?.servingSize ?? DEFAULT_PREFERENCES.servingSize,
+  };
+
+  const [accountEdits, setAccountEdits] = useState<Partial<AccountFields>>({});
+  const [passwordData, setPasswordData] = useState<PasswordFields>({
     currentPassword: "",
     newPassword: "",
     confirmPassword: "",
-  })
+  });
 
-  const [addressData, setAddressData] = useState({
-    street: "",
-    city: "",
-    state: "",
-    zipCode: "",
-    country: "United States",
-    instructions: "",
-  })
+  const [addressEdits, setAddressEdits] = useState<Partial<AddressData>>({});
+  const [preferenceEdits, setPreferenceEdits] = useState<
+    Partial<PreferencesData>
+  >({});
 
-  const [preferences, setPreferences] = useState({
-    dietaryRestrictions: [] as string[],
-    allergies: [] as string[],
-    servingSize: "medium" as "small" | "medium" | "large",
-  })
+  const formData: FormData = {
+    name: accountEdits.name ?? hydratedAccountData.name,
+    email: accountEdits.email ?? hydratedAccountData.email,
+    currentPassword: passwordData.currentPassword,
+    newPassword: passwordData.newPassword,
+    confirmPassword: passwordData.confirmPassword,
+  };
+
+  const addressData: AddressData = {
+    street: addressEdits.street ?? hydratedAddressData.street,
+    city: addressEdits.city ?? hydratedAddressData.city,
+    state: addressEdits.state ?? hydratedAddressData.state,
+    zipCode: addressEdits.zipCode ?? hydratedAddressData.zipCode,
+    country: addressEdits.country ?? hydratedAddressData.country,
+    instructions: addressEdits.instructions ?? hydratedAddressData.instructions,
+  };
+
+  const preferences: PreferencesData = {
+    dietaryRestrictions:
+      preferenceEdits.dietaryRestrictions ??
+      hydratedPreferences.dietaryRestrictions,
+    allergies: preferenceEdits.allergies ?? hydratedPreferences.allergies,
+    servingSize: preferenceEdits.servingSize ?? hydratedPreferences.servingSize,
+  };
 
   const [notifications, setNotifications] = useState({
     orderUpdates: true,
     deliveryReminders: true,
     promotions: false,
     newsletter: true,
-  })
+  });
 
   const handleProfileUpdate = async (e: React.FormEvent) => {
-    e.preventDefault()
+    e.preventDefault();
 
-    if (formData.newPassword && formData.newPassword !== formData.confirmPassword) {
+    if (
+      formData.newPassword &&
+      formData.newPassword !== formData.confirmPassword
+    ) {
       toast({
         title: "Error",
         description: "New passwords do not match.",
         variant: "destructive",
-      })
-      return
+      });
+      return;
     }
 
     await updateProfile.mutateAsync({
       name: formData.name,
       email: formData.email,
-    })
-  }
+    });
+  };
 
   const handleAddressUpdate = async (e: React.FormEvent) => {
-    e.preventDefault()
-    await updateAddress.mutateAsync(addressData)
-  }
+    e.preventDefault();
+    await updateAddress.mutateAsync(addressData);
+  };
 
   const handlePreferencesUpdate = async () => {
-    await updatePreferences.mutateAsync(preferences)
-  }
+    await updatePreferences.mutateAsync(preferences);
+  };
 
   const handleCancelSubscription = async (planId: string) => {
-    await cancelMealPlan.mutateAsync({ id: planId })
-  }
+    await cancelMealPlan.mutateAsync({ id: planId });
+  };
 
-  const activePlans = mealPlans?.filter((plan) => plan.isActive) || []
+  const activePlans = mealPlans?.filter((plan) => plan.isActive) || [];
 
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-3xl font-bold tracking-tight">Settings</h1>
-        <p className="text-muted-foreground">Manage your account and preferences</p>
+        <h1 className="font-bold text-3xl tracking-tight">Settings</h1>
+        <p className="text-muted-foreground">
+          Manage your account and preferences
+        </p>
       </div>
 
-      <Tabs defaultValue="account" className="space-y-6">
+      <Tabs className="space-y-6" defaultValue="account">
         <TabsList className="grid w-full grid-cols-5">
-          <TabsTrigger value="account" className="flex items-center gap-2">
+          <TabsTrigger className="flex items-center gap-2" value="account">
             <User className="h-4 w-4" />
             Account
           </TabsTrigger>
-          <TabsTrigger value="delivery" className="flex items-center gap-2">
+          <TabsTrigger className="flex items-center gap-2" value="delivery">
             <MapPin className="h-4 w-4" />
             Delivery
           </TabsTrigger>
-          <TabsTrigger value="preferences" className="flex items-center gap-2">
+          <TabsTrigger className="flex items-center gap-2" value="preferences">
             <Utensils className="h-4 w-4" />
             Preferences
           </TabsTrigger>
-          <TabsTrigger value="subscription" className="flex items-center gap-2">
+          <TabsTrigger className="flex items-center gap-2" value="subscription">
             <CreditCard className="h-4 w-4" />
             Subscription
           </TabsTrigger>
-          <TabsTrigger value="notifications" className="flex items-center gap-2">
+          <TabsTrigger
+            className="flex items-center gap-2"
+            value="notifications"
+          >
             <Bell className="h-4 w-4" />
             Notifications
           </TabsTrigger>
         </TabsList>
 
-        <TabsContent value="account" className="space-y-6">
+        <TabsContent className="space-y-6" value="account">
           <Card>
             <CardHeader>
               <CardTitle>Account Information</CardTitle>
-              <CardDescription>Update your personal information and password</CardDescription>
+              <CardDescription>
+                Update your personal information and password
+              </CardDescription>
             </CardHeader>
             <CardContent>
-              <form onSubmit={handleProfileUpdate} className="space-y-4">
+              <form className="space-y-4" onSubmit={handleProfileUpdate}>
                 <div className="grid gap-4 md:grid-cols-2">
                   <div className="space-y-2">
                     <Label htmlFor="name">Full Name</Label>
                     <Input
                       id="name"
-                      value={formData.name}
-                      onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                      onChange={(e) =>
+                        setAccountEdits((current) => ({
+                          ...current,
+                          name: e.target.value,
+                        }))
+                      }
                       placeholder="Enter your full name"
+                      value={formData.name}
                     />
                   </div>
                   <div className="space-y-2">
                     <Label htmlFor="email">Email Address</Label>
                     <Input
                       id="email"
+                      onChange={(e) =>
+                        setAccountEdits((current) => ({
+                          ...current,
+                          email: e.target.value,
+                        }))
+                      }
+                      placeholder="Enter your email"
                       type="email"
                       value={formData.email}
-                      onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-                      placeholder="Enter your email"
                     />
                   </div>
                 </div>
@@ -204,42 +333,57 @@ export default function SettingsPage() {
                 <Separator />
 
                 <div className="space-y-4">
-                  <h4 className="text-sm font-medium">Change Password</h4>
+                  <h4 className="font-medium text-sm">Change Password</h4>
                   <div className="grid gap-4 md:grid-cols-3">
                     <div className="space-y-2">
                       <Label htmlFor="currentPassword">Current Password</Label>
                       <Input
                         id="currentPassword"
+                        onChange={(e) =>
+                          setPasswordData((current) => ({
+                            ...current,
+                            currentPassword: e.target.value,
+                          }))
+                        }
+                        placeholder="Current password"
                         type="password"
                         value={formData.currentPassword}
-                        onChange={(e) => setFormData({ ...formData, currentPassword: e.target.value })}
-                        placeholder="Current password"
                       />
                     </div>
                     <div className="space-y-2">
                       <Label htmlFor="newPassword">New Password</Label>
                       <Input
                         id="newPassword"
+                        onChange={(e) =>
+                          setPasswordData((current) => ({
+                            ...current,
+                            newPassword: e.target.value,
+                          }))
+                        }
+                        placeholder="New password"
                         type="password"
                         value={formData.newPassword}
-                        onChange={(e) => setFormData({ ...formData, newPassword: e.target.value })}
-                        placeholder="New password"
                       />
                     </div>
                     <div className="space-y-2">
                       <Label htmlFor="confirmPassword">Confirm Password</Label>
                       <Input
                         id="confirmPassword"
+                        onChange={(e) =>
+                          setPasswordData((current) => ({
+                            ...current,
+                            confirmPassword: e.target.value,
+                          }))
+                        }
+                        placeholder="Confirm password"
                         type="password"
                         value={formData.confirmPassword}
-                        onChange={(e) => setFormData({ ...formData, confirmPassword: e.target.value })}
-                        placeholder="Confirm password"
                       />
                     </div>
                   </div>
                 </div>
 
-                <Button type="submit" disabled={updateProfile.isPending}>
+                <Button disabled={updateProfile.isPending} type="submit">
                   <Save className="mr-2 h-4 w-4" />
                   {updateProfile.isPending ? "Saving..." : "Save Changes"}
                 </Button>
@@ -248,21 +392,28 @@ export default function SettingsPage() {
           </Card>
         </TabsContent>
 
-        <TabsContent value="delivery" className="space-y-6">
+        <TabsContent className="space-y-6" value="delivery">
           <Card>
             <CardHeader>
               <CardTitle>Delivery Address</CardTitle>
-              <CardDescription>Manage where your meals are delivered</CardDescription>
+              <CardDescription>
+                Manage where your meals are delivered
+              </CardDescription>
             </CardHeader>
             <CardContent>
-              <form onSubmit={handleAddressUpdate} className="space-y-4">
+              <form className="space-y-4" onSubmit={handleAddressUpdate}>
                 <div className="space-y-2">
                   <Label htmlFor="street">Street Address</Label>
                   <Input
                     id="street"
-                    value={addressData.street}
-                    onChange={(e) => setAddressData({ ...addressData, street: e.target.value })}
+                    onChange={(e) =>
+                      setAddressEdits((current) => ({
+                        ...current,
+                        street: e.target.value,
+                      }))
+                    }
                     placeholder="123 Main Street"
+                    value={addressData.street}
                   />
                 </div>
 
@@ -271,27 +422,42 @@ export default function SettingsPage() {
                     <Label htmlFor="city">City</Label>
                     <Input
                       id="city"
-                      value={addressData.city}
-                      onChange={(e) => setAddressData({ ...addressData, city: e.target.value })}
+                      onChange={(e) =>
+                        setAddressEdits((current) => ({
+                          ...current,
+                          city: e.target.value,
+                        }))
+                      }
                       placeholder="San Francisco"
+                      value={addressData.city}
                     />
                   </div>
                   <div className="space-y-2">
                     <Label htmlFor="state">State</Label>
                     <Input
                       id="state"
-                      value={addressData.state}
-                      onChange={(e) => setAddressData({ ...addressData, state: e.target.value })}
+                      onChange={(e) =>
+                        setAddressEdits((current) => ({
+                          ...current,
+                          state: e.target.value,
+                        }))
+                      }
                       placeholder="CA"
+                      value={addressData.state}
                     />
                   </div>
                   <div className="space-y-2">
                     <Label htmlFor="zipCode">ZIP Code</Label>
                     <Input
                       id="zipCode"
-                      value={addressData.zipCode}
-                      onChange={(e) => setAddressData({ ...addressData, zipCode: e.target.value })}
+                      onChange={(e) =>
+                        setAddressEdits((current) => ({
+                          ...current,
+                          zipCode: e.target.value,
+                        }))
+                      }
                       placeholder="94102"
+                      value={addressData.zipCode}
                     />
                   </div>
                 </div>
@@ -300,14 +466,19 @@ export default function SettingsPage() {
                   <Label htmlFor="instructions">Delivery Instructions</Label>
                   <Textarea
                     id="instructions"
-                    value={addressData.instructions}
-                    onChange={(e) => setAddressData({ ...addressData, instructions: e.target.value })}
+                    onChange={(e) =>
+                      setAddressEdits((current) => ({
+                        ...current,
+                        instructions: e.target.value,
+                      }))
+                    }
                     placeholder="Leave at front door, ring doorbell, etc."
                     rows={3}
+                    value={addressData.instructions}
                   />
                 </div>
 
-                <Button type="submit" disabled={updateAddress.isPending}>
+                <Button disabled={updateAddress.isPending} type="submit">
                   <Save className="mr-2 h-4 w-4" />
                   {updateAddress.isPending ? "Saving..." : "Save Address"}
                 </Button>
@@ -316,20 +487,25 @@ export default function SettingsPage() {
           </Card>
         </TabsContent>
 
-        <TabsContent value="preferences" className="space-y-6">
+        <TabsContent className="space-y-6" value="preferences">
           <Card>
             <CardHeader>
               <CardTitle>Dietary Preferences</CardTitle>
-              <CardDescription>Help us customize your meal selections</CardDescription>
+              <CardDescription>
+                Help us customize your meal selections
+              </CardDescription>
             </CardHeader>
             <CardContent className="space-y-6">
               <div className="space-y-3">
                 <Label>Serving Size</Label>
                 <Select
-                  value={preferences.servingSize}
-                  onValueChange={(value: "small" | "medium" | "large") =>
-                    setPreferences({ ...preferences, servingSize: value })
+                  onValueChange={(value: ServingSize) =>
+                    setPreferenceEdits((current) => ({
+                      ...current,
+                      servingSize: value,
+                    }))
                   }
+                  value={preferences.servingSize}
                 >
                   <SelectTrigger>
                     <SelectValue />
@@ -345,17 +521,34 @@ export default function SettingsPage() {
               <div className="space-y-3">
                 <Label>Dietary Restrictions</Label>
                 <div className="flex flex-wrap gap-2">
-                  {["Vegetarian", "Vegan", "Gluten-Free", "Dairy-Free", "Keto", "Paleo"].map((restriction) => (
+                  {[
+                    "Vegetarian",
+                    "Vegan",
+                    "Gluten-Free",
+                    "Dairy-Free",
+                    "Keto",
+                    "Paleo",
+                  ].map((restriction) => (
                     <Badge
-                      key={restriction}
-                      variant={preferences.dietaryRestrictions.includes(restriction) ? "default" : "outline"}
                       className="cursor-pointer"
+                      key={restriction}
                       onClick={() => {
-                        const updated = preferences.dietaryRestrictions.includes(restriction)
-                          ? preferences.dietaryRestrictions.filter((r) => r !== restriction)
-                          : [...preferences.dietaryRestrictions, restriction]
-                        setPreferences({ ...preferences, dietaryRestrictions: updated })
+                        const updated =
+                          preferences.dietaryRestrictions.includes(restriction)
+                            ? preferences.dietaryRestrictions.filter(
+                                (r) => r !== restriction
+                              )
+                            : [...preferences.dietaryRestrictions, restriction];
+                        setPreferenceEdits((current) => ({
+                          ...current,
+                          dietaryRestrictions: updated,
+                        }));
                       }}
+                      variant={
+                        preferences.dietaryRestrictions.includes(restriction)
+                          ? "default"
+                          : "outline"
+                      }
                     >
                       {restriction}
                     </Badge>
@@ -366,25 +559,39 @@ export default function SettingsPage() {
               <div className="space-y-3">
                 <Label>Allergies</Label>
                 <div className="flex flex-wrap gap-2">
-                  {["Nuts", "Shellfish", "Fish", "Eggs", "Soy", "Sesame"].map((allergy) => (
-                    <Badge
-                      key={allergy}
-                      variant={preferences.allergies.includes(allergy) ? "destructive" : "outline"}
-                      className="cursor-pointer"
-                      onClick={() => {
-                        const updated = preferences.allergies.includes(allergy)
-                          ? preferences.allergies.filter((a) => a !== allergy)
-                          : [...preferences.allergies, allergy]
-                        setPreferences({ ...preferences, allergies: updated })
-                      }}
-                    >
-                      {allergy}
-                    </Badge>
-                  ))}
+                  {["Nuts", "Shellfish", "Fish", "Eggs", "Soy", "Sesame"].map(
+                    (allergy) => (
+                      <Badge
+                        className="cursor-pointer"
+                        key={allergy}
+                        onClick={() => {
+                          const updated = preferences.allergies.includes(
+                            allergy
+                          )
+                            ? preferences.allergies.filter((a) => a !== allergy)
+                            : [...preferences.allergies, allergy];
+                          setPreferenceEdits((current) => ({
+                            ...current,
+                            allergies: updated,
+                          }));
+                        }}
+                        variant={
+                          preferences.allergies.includes(allergy)
+                            ? "destructive"
+                            : "outline"
+                        }
+                      >
+                        {allergy}
+                      </Badge>
+                    )
+                  )}
                 </div>
               </div>
 
-              <Button onClick={handlePreferencesUpdate} disabled={updatePreferences.isPending}>
+              <Button
+                disabled={updatePreferences.isPending}
+                onClick={handlePreferencesUpdate}
+              >
                 <Save className="mr-2 h-4 w-4" />
                 {updatePreferences.isPending ? "Saving..." : "Save Preferences"}
               </Button>
@@ -392,7 +599,7 @@ export default function SettingsPage() {
           </Card>
         </TabsContent>
 
-        <TabsContent value="subscription" className="space-y-6">
+        <TabsContent className="space-y-6" value="subscription">
           <Card>
             <CardHeader>
               <CardTitle>Subscription Management</CardTitle>
@@ -400,19 +607,28 @@ export default function SettingsPage() {
             </CardHeader>
             <CardContent className="space-y-4">
               {activePlans.length === 0 ? (
-                <div className="text-center py-6">
+                <div className="py-6 text-center">
                   <CreditCard className="mx-auto h-12 w-12 text-muted-foreground" />
-                  <h3 className="mt-2 text-sm font-semibold">No active subscriptions</h3>
-                  <p className="mt-1 text-sm text-muted-foreground">Create a meal plan to get started</p>
+                  <h3 className="mt-2 font-semibold text-sm">
+                    No active subscriptions
+                  </h3>
+                  <p className="mt-1 text-muted-foreground text-sm">
+                    Create a meal plan to get started
+                  </p>
                   <Button className="mt-4">Create Subscription</Button>
                 </div>
               ) : (
                 activePlans.map((plan) => (
-                  <div key={plan.id} className="border rounded-lg p-4 space-y-4">
+                  <div
+                    className="space-y-4 rounded-lg border p-4"
+                    key={plan.id}
+                  >
                     <div className="flex items-center justify-between">
                       <div>
-                        <h4 className="font-medium capitalize">{plan.planType} Box</h4>
-                        <p className="text-sm text-muted-foreground">
+                        <h4 className="font-medium capitalize">
+                          {plan.planType} Box
+                        </h4>
+                        <p className="text-muted-foreground text-sm">
                           {plan.billingType} • {plan.deliveryFrequency}
                         </p>
                       </div>
@@ -420,30 +636,35 @@ export default function SettingsPage() {
                     </div>
 
                     <div className="flex gap-2">
-                      <Button variant="outline" size="sm">
+                      <Button size="sm" variant="outline">
                         <Pause className="mr-2 h-4 w-4" />
                         Pause
                       </Button>
 
                       <AlertDialog>
                         <AlertDialogTrigger asChild>
-                          <Button variant="outline" size="sm">
+                          <Button size="sm" variant="outline">
                             <X className="mr-2 h-4 w-4" />
                             Cancel
                           </Button>
                         </AlertDialogTrigger>
                         <AlertDialogContent>
                           <AlertDialogHeader>
-                            <AlertDialogTitle>Cancel Subscription</AlertDialogTitle>
+                            <AlertDialogTitle>
+                              Cancel Subscription
+                            </AlertDialogTitle>
                             <AlertDialogDescription>
-                              Are you sure you want to cancel this meal plan? This action cannot be undone.
+                              Are you sure you want to cancel this meal plan?
+                              This action cannot be undone.
                             </AlertDialogDescription>
                           </AlertDialogHeader>
                           <AlertDialogFooter>
-                            <AlertDialogCancel>Keep Subscription</AlertDialogCancel>
+                            <AlertDialogCancel>
+                              Keep Subscription
+                            </AlertDialogCancel>
                             <AlertDialogAction
-                              onClick={() => handleCancelSubscription(plan.id)}
                               className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                              onClick={() => handleCancelSubscription(plan.id)}
                             >
                               Cancel Subscription
                             </AlertDialogAction>
@@ -458,57 +679,86 @@ export default function SettingsPage() {
           </Card>
         </TabsContent>
 
-        <TabsContent value="notifications" className="space-y-6">
+        <TabsContent className="space-y-6" value="notifications">
           <Card>
             <CardHeader>
               <CardTitle>Notification Preferences</CardTitle>
-              <CardDescription>Choose what notifications you'd like to receive</CardDescription>
+              <CardDescription>
+                Choose what notifications you'd like to receive
+              </CardDescription>
             </CardHeader>
             <CardContent className="space-y-6">
               <div className="space-y-4">
                 <div className="flex items-center justify-between">
                   <div className="space-y-0.5">
                     <Label>Order Updates</Label>
-                    <p className="text-sm text-muted-foreground">
-                      Get notified about order confirmations and delivery updates
+                    <p className="text-muted-foreground text-sm">
+                      Get notified about order confirmations and delivery
+                      updates
                     </p>
                   </div>
                   <Switch
                     checked={notifications.orderUpdates}
-                    onCheckedChange={(checked) => setNotifications({ ...notifications, orderUpdates: checked })}
+                    onCheckedChange={(checked) =>
+                      setNotifications({
+                        ...notifications,
+                        orderUpdates: checked,
+                      })
+                    }
                   />
                 </div>
 
                 <div className="flex items-center justify-between">
                   <div className="space-y-0.5">
                     <Label>Delivery Reminders</Label>
-                    <p className="text-sm text-muted-foreground">Receive reminders about upcoming deliveries</p>
+                    <p className="text-muted-foreground text-sm">
+                      Receive reminders about upcoming deliveries
+                    </p>
                   </div>
                   <Switch
                     checked={notifications.deliveryReminders}
-                    onCheckedChange={(checked) => setNotifications({ ...notifications, deliveryReminders: checked })}
+                    onCheckedChange={(checked) =>
+                      setNotifications({
+                        ...notifications,
+                        deliveryReminders: checked,
+                      })
+                    }
                   />
                 </div>
 
                 <div className="flex items-center justify-between">
                   <div className="space-y-0.5">
                     <Label>Promotions</Label>
-                    <p className="text-sm text-muted-foreground">Get notified about special offers and discounts</p>
+                    <p className="text-muted-foreground text-sm">
+                      Get notified about special offers and discounts
+                    </p>
                   </div>
                   <Switch
                     checked={notifications.promotions}
-                    onCheckedChange={(checked) => setNotifications({ ...notifications, promotions: checked })}
+                    onCheckedChange={(checked) =>
+                      setNotifications({
+                        ...notifications,
+                        promotions: checked,
+                      })
+                    }
                   />
                 </div>
 
                 <div className="flex items-center justify-between">
                   <div className="space-y-0.5">
                     <Label>Newsletter</Label>
-                    <p className="text-sm text-muted-foreground">Receive our weekly newsletter with recipes and tips</p>
+                    <p className="text-muted-foreground text-sm">
+                      Receive our weekly newsletter with recipes and tips
+                    </p>
                   </div>
                   <Switch
                     checked={notifications.newsletter}
-                    onCheckedChange={(checked) => setNotifications({ ...notifications, newsletter: checked })}
+                    onCheckedChange={(checked) =>
+                      setNotifications({
+                        ...notifications,
+                        newsletter: checked,
+                      })
+                    }
                   />
                 </div>
               </div>
@@ -522,5 +772,5 @@ export default function SettingsPage() {
         </TabsContent>
       </Tabs>
     </div>
-  )
+  );
 }

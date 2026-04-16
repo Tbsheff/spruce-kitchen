@@ -1,17 +1,22 @@
-"use client"
+"use client";
 
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { Separator } from "@/components/ui/separator"
+import {
+  Card,
+  CardContent,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card.tsx";
+import { Separator } from "@/components/ui/separator.tsx";
 
-type Size = "small" | "medium"
+type Size = "small" | "medium";
 
 interface OrderSummaryProps {
-  size?: Size
+  size?: Size;
 }
 
 export function OrderSummary({ size }: OrderSummaryProps) {
   return (
-    <Card className="animate-in slide-in-from-bottom-4 duration-700">
+    <Card className="slide-in-from-bottom-4 animate-in duration-700">
       <CardHeader>
         <CardTitle>Order Summary</CardTitle>
       </CardHeader>
@@ -33,5 +38,5 @@ export function OrderSummary({ size }: OrderSummaryProps) {
         </div>
       </CardContent>
     </Card>
-  )
+  );
 }

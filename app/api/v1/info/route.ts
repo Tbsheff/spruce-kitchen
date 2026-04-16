@@ -1,13 +1,46 @@
-import { NextRequest, NextResponse } from "next/server"
-import { addVersionHeaders } from "@/lib/middleware/api-versioning"
-import { API_VERSIONS, SUPPORTED_VERSIONS } from "@/lib/config/api-version"
+import { type NextRequest, NextResponse } from "next/server";
+import {
+  API_VERSIONS,
+  type ApiVersion,
+  SUPPORTED_VERSIONS,
+} from "@/lib/config/api-version.ts";
+import { addVersionHeaders } from "@/lib/middleware/api-versioning.ts";
 
 /**
  * API v1 Information Endpoint
  * Returns API version details, available endpoints, and deprecation notices
  */
-export async function GET(request: NextRequest) {
-  const response = NextResponse.json({
+
+/** Response shape for `GET /api/v1/info`. */
+export interface InfoResponse {
+  api: {
+    version: ApiVersion;
+    versionNumber: string;
+    supportedVersions: readonly ApiVersion[];
+    deprecationNotice: string | null;
+  };
+  documentation: {
+    openapi: string | null;
+    postman: string | null;
+  };
+  endpoints: Record<string, string>;
+  lastUpdated: string;
+  rateLimiting: {
+    enabled: boolean;
+    defaultLimits: {
+      authenticated: string;
+      anonymous: string;
+    };
+  };
+  security: {
+    authentication: string;
+    encryption: string;
+    inputValidation: string;
+  };
+}
+
+export function GET(_request: NextRequest) {
+  const response = NextResponse.json<InfoResponse>({
     api: {
       version: "v1",
       versionNumber: API_VERSIONS.v1,
@@ -37,7 +70,7 @@ export async function GET(request: NextRequest) {
       inputValidation: "All inputs sanitized and validated",
     },
     lastUpdated: "2024-08-15T00:00:00Z",
-  })
+  });
 
-  return addVersionHeaders(response, "v1")
+  return addVersionHeaders(response, "v1");
 }

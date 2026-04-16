@@ -1,30 +1,44 @@
-"use client"
+"use client";
 
-import type React from "react"
-
-import { useState } from "react"
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { Button } from "@/components/ui/button"
-import { Badge } from "@/components/ui/badge"
-import { Separator } from "@/components/ui/separator"
-import { Input } from "@/components/ui/input"
-import { Label } from "@/components/ui/label"
-import { toast } from "@/hooks/use-toast"
-import { trpc } from "@/lib/trpc/client"
-import { useAuth } from "@/lib/auth-context"
-import { CreditCard, Calendar, Download, Plus, Trash2, Shield, Receipt, AlertCircle } from "lucide-react"
+import {
+  AlertCircle,
+  Calendar,
+  CreditCard,
+  Download,
+  Plus,
+  Receipt,
+  Shield,
+  Trash2,
+} from "lucide-react";
+import type React from "react";
+import { useState } from "react";
+import { Badge } from "@/components/ui/badge.tsx";
+import { Button } from "@/components/ui/button.tsx";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card.tsx";
+import { Input } from "@/components/ui/input.tsx";
+import { Label } from "@/components/ui/label.tsx";
+import { Separator } from "@/components/ui/separator.tsx";
+import { toast } from "@/hooks/use-toast.ts";
+import { useAuth } from "@/lib/auth-context.tsx";
+import { trpc } from "@/lib/trpc/client.ts";
 
 export default function BillingPage() {
-  const { user } = useAuth()
-  const { data: mealPlans } = trpc.mealPlan.getUserPlans.useQuery()
+  useAuth();
+  const { data: mealPlans } = trpc.mealPlan.getUserPlans.useQuery();
 
-  const [showAddCard, setShowAddCard] = useState(false)
+  const [showAddCard, setShowAddCard] = useState(false);
   const [cardData, setCardData] = useState({
     number: "",
     expiry: "",
     cvc: "",
     name: "",
-  })
+  });
 
   // Mock billing data
   const mockPaymentMethods = [
@@ -42,7 +56,7 @@ export default function BillingPage() {
       expiry: "08/26",
       isDefault: false,
     },
-  ]
+  ];
 
   const mockInvoices = [
     {
@@ -66,58 +80,77 @@ export default function BillingPage() {
       status: "paid",
       description: "Small Box - Weekly Subscription",
     },
-  ]
+  ];
 
-  const activePlans = mealPlans?.filter((plan) => plan.isActive) || []
-  const nextBillingDate = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000)
+  const activePlans = mealPlans?.filter((plan) => plan.isActive) || [];
+  const nextBillingDate = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
 
   const handleAddCard = (e: React.FormEvent) => {
-    e.preventDefault()
+    e.preventDefault();
     toast({
       title: "Payment method added",
       description: "Your new payment method has been saved successfully.",
-    })
-    setShowAddCard(false)
-    setCardData({ number: "", expiry: "", cvc: "", name: "" })
-  }
+    });
+    setShowAddCard(false);
+    setCardData({ number: "", expiry: "", cvc: "", name: "" });
+  };
 
-  const getCardIcon = (type: string) => {
-    return <CreditCard className="h-4 w-4" />
-  }
+  const getCardIcon = (_type: string) => {
+    return <CreditCard className="h-4 w-4" />;
+  };
 
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-3xl font-bold tracking-tight">Billing & Payments</h1>
-        <p className="text-muted-foreground">Manage your payment methods and billing history</p>
+        <h1 className="font-bold text-3xl tracking-tight">
+          Billing & Payments
+        </h1>
+        <p className="text-muted-foreground">
+          Manage your payment methods and billing history
+        </p>
       </div>
 
       <div className="grid gap-6 lg:grid-cols-3">
-        <div className="lg:col-span-2 space-y-6">
+        <div className="space-y-6 lg:col-span-2">
           <Card>
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
                 <CreditCard className="h-5 w-5" />
                 Payment Methods
               </CardTitle>
-              <CardDescription>Manage your saved payment methods</CardDescription>
+              <CardDescription>
+                Manage your saved payment methods
+              </CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
               {mockPaymentMethods.map((method) => (
-                <div key={method.id} className="flex items-center justify-between p-4 border rounded-lg">
+                <div
+                  className="flex items-center justify-between rounded-lg border p-4"
+                  key={method.id}
+                >
                   <div className="flex items-center gap-3">
                     {getCardIcon(method.type)}
                     <div>
-                      <p className="font-medium">•••• •••• •••• {method.last4}</p>
-                      <p className="text-sm text-muted-foreground">Expires {method.expiry}</p>
+                      <p className="font-medium">
+                        •••• •••• •••• {method.last4}
+                      </p>
+                      <p className="text-muted-foreground text-sm">
+                        Expires {method.expiry}
+                      </p>
                     </div>
-                    {method.isDefault && <Badge variant="secondary">Default</Badge>}
+                    {method.isDefault && (
+                      <Badge variant="secondary">Default</Badge>
+                    )}
                   </div>
                   <div className="flex gap-2">
-                    <Button variant="outline" size="sm">
+                    <Button size="sm" variant="outline">
                       Edit
                     </Button>
-                    <Button variant="outline" size="sm" disabled={method.isDefault}>
+                    <Button
+                      disabled={method.isDefault}
+                      size="sm"
+                      variant="outline"
+                    >
                       <Trash2 className="h-4 w-4" />
                     </Button>
                   </div>
@@ -127,28 +160,34 @@ export default function BillingPage() {
               {showAddCard ? (
                 <Card>
                   <CardHeader>
-                    <CardTitle className="text-lg">Add New Payment Method</CardTitle>
+                    <CardTitle className="text-lg">
+                      Add New Payment Method
+                    </CardTitle>
                   </CardHeader>
                   <CardContent>
-                    <form onSubmit={handleAddCard} className="space-y-4">
+                    <form className="space-y-4" onSubmit={handleAddCard}>
                       <div className="space-y-2">
                         <Label htmlFor="cardName">Cardholder Name</Label>
                         <Input
                           id="cardName"
-                          value={cardData.name}
-                          onChange={(e) => setCardData({ ...cardData, name: e.target.value })}
+                          onChange={(e) =>
+                            setCardData({ ...cardData, name: e.target.value })
+                          }
                           placeholder="John Doe"
                           required
+                          value={cardData.name}
                         />
                       </div>
                       <div className="space-y-2">
                         <Label htmlFor="cardNumber">Card Number</Label>
                         <Input
                           id="cardNumber"
-                          value={cardData.number}
-                          onChange={(e) => setCardData({ ...cardData, number: e.target.value })}
+                          onChange={(e) =>
+                            setCardData({ ...cardData, number: e.target.value })
+                          }
                           placeholder="1234 5678 9012 3456"
                           required
+                          value={cardData.number}
                         />
                       </div>
                       <div className="grid gap-4 md:grid-cols-2">
@@ -156,26 +195,37 @@ export default function BillingPage() {
                           <Label htmlFor="expiry">Expiry Date</Label>
                           <Input
                             id="expiry"
-                            value={cardData.expiry}
-                            onChange={(e) => setCardData({ ...cardData, expiry: e.target.value })}
+                            onChange={(e) =>
+                              setCardData({
+                                ...cardData,
+                                expiry: e.target.value,
+                              })
+                            }
                             placeholder="MM/YY"
                             required
+                            value={cardData.expiry}
                           />
                         </div>
                         <div className="space-y-2">
                           <Label htmlFor="cvc">CVC</Label>
                           <Input
                             id="cvc"
-                            value={cardData.cvc}
-                            onChange={(e) => setCardData({ ...cardData, cvc: e.target.value })}
+                            onChange={(e) =>
+                              setCardData({ ...cardData, cvc: e.target.value })
+                            }
                             placeholder="123"
                             required
+                            value={cardData.cvc}
                           />
                         </div>
                       </div>
                       <div className="flex gap-2">
                         <Button type="submit">Add Card</Button>
-                        <Button type="button" variant="outline" onClick={() => setShowAddCard(false)}>
+                        <Button
+                          onClick={() => setShowAddCard(false)}
+                          type="button"
+                          variant="outline"
+                        >
                           Cancel
                         </Button>
                       </div>
@@ -183,7 +233,11 @@ export default function BillingPage() {
                   </CardContent>
                 </Card>
               ) : (
-                <Button variant="outline" onClick={() => setShowAddCard(true)} className="w-full">
+                <Button
+                  className="w-full"
+                  onClick={() => setShowAddCard(true)}
+                  variant="outline"
+                >
                   <Plus className="mr-2 h-4 w-4" />
                   Add Payment Method
                 </Button>
@@ -197,21 +251,33 @@ export default function BillingPage() {
                 <Receipt className="h-5 w-5" />
                 Billing History
               </CardTitle>
-              <CardDescription>View and download your past invoices</CardDescription>
+              <CardDescription>
+                View and download your past invoices
+              </CardDescription>
             </CardHeader>
             <CardContent>
               <div className="space-y-4">
                 {mockInvoices.map((invoice) => (
-                  <div key={invoice.id} className="flex items-center justify-between p-4 border rounded-lg">
+                  <div
+                    className="flex items-center justify-between rounded-lg border p-4"
+                    key={invoice.id}
+                  >
                     <div>
                       <p className="font-medium">{invoice.description}</p>
-                      <p className="text-sm text-muted-foreground">
-                        {invoice.date.toLocaleDateString()} • ${(invoice.amount / 100).toFixed(2)}
+                      <p className="text-muted-foreground text-sm">
+                        {invoice.date.toLocaleDateString()} • $
+                        {(invoice.amount / 100).toFixed(2)}
                       </p>
                     </div>
                     <div className="flex items-center gap-2">
-                      <Badge variant={invoice.status === "paid" ? "default" : "secondary"}>{invoice.status}</Badge>
-                      <Button variant="outline" size="sm">
+                      <Badge
+                        variant={
+                          invoice.status === "paid" ? "default" : "secondary"
+                        }
+                      >
+                        {invoice.status}
+                      </Badge>
+                      <Button size="sm" variant="outline">
                         <Download className="h-4 w-4" />
                       </Button>
                     </div>
@@ -222,7 +288,7 @@ export default function BillingPage() {
           </Card>
         </div>
 
-        <div className="lg:col-span-1 space-y-6">
+        <div className="space-y-6 lg:col-span-1">
           <Card>
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
@@ -232,8 +298,12 @@ export default function BillingPage() {
             </CardHeader>
             <CardContent className="space-y-4">
               <div className="text-center">
-                <p className="text-2xl font-bold">${activePlans.length > 0 ? "79.99" : "0.00"}</p>
-                <p className="text-sm text-muted-foreground">Due {nextBillingDate.toLocaleDateString()}</p>
+                <p className="font-bold text-2xl">
+                  ${activePlans.length > 0 ? "79.99" : "0.00"}
+                </p>
+                <p className="text-muted-foreground text-sm">
+                  Due {nextBillingDate.toLocaleDateString()}
+                </p>
               </div>
 
               {activePlans.length > 0 && (
@@ -263,17 +333,21 @@ export default function BillingPage() {
             </CardHeader>
             <CardContent className="space-y-4">
               <div className="flex items-start gap-3">
-                <Shield className="h-5 w-5 text-green-500 mt-0.5" />
+                <Shield className="mt-0.5 h-5 w-5 text-green-500" />
                 <div>
-                  <p className="text-sm font-medium">Secure Payments</p>
-                  <p className="text-xs text-muted-foreground">All payments are encrypted and processed securely</p>
+                  <p className="font-medium text-sm">Secure Payments</p>
+                  <p className="text-muted-foreground text-xs">
+                    All payments are encrypted and processed securely
+                  </p>
                 </div>
               </div>
               <div className="flex items-start gap-3">
-                <AlertCircle className="h-5 w-5 text-blue-500 mt-0.5" />
+                <AlertCircle className="mt-0.5 h-5 w-5 text-blue-500" />
                 <div>
-                  <p className="text-sm font-medium">Billing Alerts</p>
-                  <p className="text-xs text-muted-foreground">Get notified before each billing cycle</p>
+                  <p className="font-medium text-sm">Billing Alerts</p>
+                  <p className="text-muted-foreground text-xs">
+                    Get notified before each billing cycle
+                  </p>
                 </div>
               </div>
             </CardContent>
@@ -281,5 +355,5 @@ export default function BillingPage() {
         </div>
       </div>
     </div>
-  )
+  );
 }

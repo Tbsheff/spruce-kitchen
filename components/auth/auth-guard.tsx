@@ -4,7 +4,7 @@ import { Loader2 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import type React from "react";
 import { useEffect } from "react";
-import { useCurrentUser } from "@/lib/identity/client";
+import { useCurrentUser } from "@/lib/identity/client.ts";
 
 interface AuthGuardProps {
   readonly children: React.ReactNode;
