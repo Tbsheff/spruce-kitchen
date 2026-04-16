@@ -16,8 +16,11 @@ lib/identity/
   adapters/
     prod/         # BetterAuth / Drizzle / SimpleAudit / SystemClock
     test/         # in-memory stand-ins for unit tests
-  index.ts        # public API + createServerIdentityPorts()
+  trpc/
+    resource-procedure.ts  # declarative factory for protected, row-scoped handlers
+  client.ts       # useCurrentUser() hook (backed by GET /api/identity/me)
   server.ts       # RSC helpers: currentUser() + requireUser()
+  index.ts        # public API + createServerIdentityPorts()
   testing.ts      # createTestIdentity() + in-memory re-exports
 ```
 
@@ -37,48 +40,69 @@ lib/identity/
 |-------|--------|--------|-----------|
 | 1. Foundation | Done | `a772993` | Pure core, prod + test adapters, `createServerIdentityPorts`, `createTestIdentity` |
 | 2. Server rewire | Done | `bdbe402` | `ctx.currentUser` in tRPC, rewritten procedures, `lib/identity/server.ts` RSC helpers, `RBACService` + mock matrix deleted |
-| 2.5. Client seam | Done | pending | `serializeCurrentUser` / `hydrateCurrentUser` helpers in domain |
-| 3. Client migration | Not started | — | See below |
-| 4. Router ergonomics | Not started | — | See below |
+| 2.5. Client seam | Done | `ebcddf3` | `serializeCurrentUser` / `hydrateCurrentUser` helpers in domain |
+| 3. Client hook | Done | `056482a` | `GET /api/identity/me` + `useCurrentUser()` hook, `AuthGuard` migrated |
+| 4. Router ergonomics | Done | `c5fa59f` | `resourceProcedure` factory; `mealPlan.getById/update/cancel` migrated (165 LOC → 49 LOC) |
 
-## Phase 3 — client migration (future work)
+## RFC substance: delivered
 
-Scope: replace every consumer of `useAuth` / `useUser` / `useSession` /
-`useRequireAuth` / `<AuthGuard>` with a single `useCurrentUser()` hook, and
-delete `lib/auth-context.tsx` + `components/auth/auth-guard.tsx`.
+- ✅ Single `CurrentUser` primitive on server and client
+- ✅ Synchronous `can(permission, resourceOwnerId?)` with `:own` / `:all` hierarchy built in
+- ✅ Ports & adapters architecture: `IdentityProvider`, `AuthorizationStore`, `AuditSink`, `Clock`
+- ✅ `RBACService` + hardcoded mock permission matrix deleted
+- ✅ `ctx.currentUser` drives all tRPC auth middleware
+- ✅ RSC helpers (`currentUser()`, `requireUser()`)
+- ✅ Serialization seam for client hydration
+- ✅ Client hook (`useCurrentUser`) + `AuthGuard` migration
+- ✅ `resourceProcedure` factory with 3 migrated handlers as proof
 
-Required fetch strategy: the client needs to call a server endpoint that
-returns the resolved `CurrentUserState`. The obvious path — add an
-`identity.me` tRPC query and consume it via React Query — triggered a
-pre-existing brittle `Parameters<typeof trpc.X.useMutation>` inference in
-`lib/trpc/hooks.ts`. That file extracts mutation option types from the
-AppRouter shape, and adding a new router subtree caused TypeScript to
-resolve the mutation signature to something incompatible with the
-`Parameters<>` constraint.
+## Outstanding follow-ups (separate PRs)
 
-Two viable paths for Phase 3:
+### A. Consumer migration — unify client read path
 
-1. **Fix `hooks.ts` first.** Replace `Parameters<typeof trpc.X.useMutation>[0]`
-   with explicit option types (e.g., `UseTRPCMutationOptions<Input, Error, Output>`).
-   Then the `identity.me` router can be added without breaking the hook
-   file. This is the recommended path.
-2. **Use a plain REST `/api/me` handler** instead of a tRPC query, bypassing
-   the AppRouter type growth entirely. Faster but introduces a second data
-   path for the same thing.
+`lib/auth-context.tsx` still maintains its own session state machine and
+serves ~15 consumers via `useAuth`, `useUser`, `useSession`,
+`useRequireAuth`. These all work; they just go through a different
+(still-correct) code path than `useCurrentUser`. To unify:
 
-The serialization seam is already in place (`serializeCurrentUser` /
-`hydrateCurrentUser` in `core/domain.ts`), so the actual hook implementation
-is small once the fetch strategy is unblocked.
+1. Rewrite `AuthProvider` to internally call `useCurrentUser()` for
+   reads, keeping `signIn` / `signUp` / `signOut` / `signOutAll` for
+   writes. After a write, call `invalidateCurrentUser()` to force the
+   next render to refetch.
+2. Add an observable mechanism to `useCurrentUser` so `invalidateCurrentUser()`
+   actually triggers a re-render (today it only clears the in-flight
+   cache; existing hook instances keep their stale state until unmount).
+   Options: module-level `useSyncExternalStore`, or a pub/sub event bus.
+3. Migrate consumers from `useAuth()` to `useCurrentUser()` where they
+   only need reads. Keep `useAuth()` for pages that need sign-in / sign-out.
 
-## Phase 4 — router ergonomics (future work)
+Risk: medium. Touches ~15 files. No browser test runner in this project,
+so runtime behavior needs manual verification.
 
-Introduce the `resourceProcedure()` factory described in the RFC. Collapses
-the repeating "load row → check ownership → audit → return" pattern in
-`mealPlan.ts`, `user.ts`, and `admin.ts`. Measured target: `mealPlan.ts`
-handlers drop from ~138 LOC to ~28 LOC across `create`, `getById`, and
-`cancel`. Rollout can be per-route; no big-bang.
+### B. Router migration — more `resourceProcedure`
 
-## Usage (current)
+Candidates that fit the factory's shape:
+
+- `user.updateProfile` (ownership via `ctx.user.id === input.userId`)
+- `user.updatePreferences` / `updateDeliveryAddress` (self-owned by caller)
+- Any admin-scoped read that has a well-defined "row + optional owner" shape
+
+Not candidates (explicit decision):
+
+- `mealPlan.create` — no row to load
+- `mealPlan.getUserPlans` — returns a collection, no per-row ownership check
+- `mealPlan.createOrder` — cross-resource (loads mealPlan, inserts order)
+- Admin list endpoints — access scope is `":all"` not `":own"`
+
+### C. ESLint boundary enforcement
+
+Add `no-restricted-imports` scoped to `lib/identity/core/**` rejecting
+any import of `react`, `next/*`, `better-auth`, `drizzle-orm`, and
+`postgres`. Today the invariant is documented but unenforced — a
+well-meaning future contributor could quietly import React into domain
+code and no CI step would flag it.
+
+## Usage
 
 ### Server component
 
@@ -91,18 +115,48 @@ export default async function Dashboard() {
 }
 ```
 
-### tRPC procedure (any router)
+### Client component
+
+```tsx
+"use client"
+import { useCurrentUser } from "@/lib/identity/client"
+
+export function AdminBadge() {
+  const state = useCurrentUser()
+  if (state.status !== "authenticated") return null
+  return state.user.isAdmin() ? <Badge>Admin</Badge> : null
+}
+```
+
+### tRPC — resource-scoped handler
+
+```ts
+import { resourceProcedure } from "@/lib/identity/trpc/resource-procedure"
+
+export const cancel = resourceProcedure({
+  permission: "mealplan:write:own",
+  resource: "mealplan",
+  action: "cancel",
+  input: z.object({ id: z.string() }),
+  loadRow: loadMealPlanById, // returns row | null
+}).mutation(async ({ input }) => {
+  // auth, ownership, NOT_FOUND, and audit are already handled
+  await db().update(mealPlan).set({ isActive: false }).where(eq(mealPlan.id, input.id))
+  return { success: true }
+})
+```
+
+### tRPC — non-row handler (direct ctx.me.can)
 
 ```ts
 import { requirePermission } from "@/lib/trpc/procedures"
 
-export const something = requirePermission("mealplan:write:own")
-  .input(z.object({ id: z.string(), ownerId: z.string() }))
+export const create = requirePermission("mealplan:write:own")
+  .input(z.object({ boxSize: z.enum(["small", "medium"]) }))
   .mutation(({ ctx, input }) => {
-    // ctx.me.can(...) is synchronous, ownership-aware
-    if (!ctx.me.can("mealplan:write:own", input.ownerId)) throw forbidden()
-    // ctx.user, ctx.userRole, ctx.rbac, ctx.audit remain available
-    // for backward compatibility with existing routers
+    // ctx.me.can(...) is synchronous
+    // ctx.user, ctx.userRole, ctx.rbac, ctx.audit are available
+    // for backward compatibility.
   })
 ```
 
