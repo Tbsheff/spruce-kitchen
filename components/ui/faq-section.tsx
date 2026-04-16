@@ -1,114 +1,125 @@
-"use client"
+"use client";
 
-import * as React from "react"
-import { motion, AnimatePresence } from "framer-motion"
-import { ChevronDown, Mail } from "lucide-react"
-import { cn } from "@/lib/utils"
-import { Button } from "@/components/ui/button"
-import { Faq } from "@/components/ui/faq"
+import { AnimatePresence, motion } from "framer-motion";
+import { ChevronDown, Mail } from "lucide-react";
+import * as React from "react";
+import { Button } from "@/components/ui/button.tsx";
+import { Faq } from "@/components/ui/faq.tsx";
+import { cn } from "@/lib/utils.ts";
 
 interface FaqSectionProps extends React.HTMLAttributes<HTMLElement> {
-  title: string
-  description?: string
-  items: {
-    question: string
-    answer: string
-  }[]
   contactInfo?: {
-    title: string
-    description: string
-    buttonText: string
-    onContact?: () => void
-  }
+    title: string;
+    description: string;
+    buttonText: string;
+    onContact?: () => void;
+  };
+  description?: string;
+  items: {
+    question: string;
+    answer: string;
+  }[];
+  title: string;
 }
 
 const FaqSection = React.forwardRef<HTMLElement, FaqSectionProps>(
   ({ className, title, description, items, contactInfo, ...props }, ref) => {
     return (
       <section
+        className={cn(
+          "w-full bg-gradient-to-b from-transparent via-muted/50 to-transparent py-16",
+          className
+        )}
         ref={ref}
-        className={cn("py-16 w-full bg-gradient-to-b from-transparent via-muted/50 to-transparent", className)}
         {...props}
       >
         <div className="container">
           {/* Header */}
           <motion.div
-            initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
+            className="mx-auto mb-12 max-w-2xl text-center"
+            initial={{ opacity: 0, y: 20 }}
             transition={{ duration: 0.5 }}
-            className="max-w-2xl mx-auto text-center mb-12"
           >
-            <h2 className="text-3xl font-semibold mb-3 bg-gradient-to-r from-foreground via-foreground/80 to-foreground bg-clip-text text-transparent">
+            <h2 className="mb-3 bg-gradient-to-r from-foreground via-foreground/80 to-foreground bg-clip-text font-semibold text-3xl text-transparent">
               {title}
             </h2>
-            {description && <p className="text-sm text-muted-foreground">{description}</p>}
+            {description && (
+              <p className="text-muted-foreground text-sm">{description}</p>
+            )}
           </motion.div>
 
           {/* FAQ Items */}
-          <div className="max-w-2xl mx-auto">
+          <div className="mx-auto max-w-2xl">
             <Faq items={items} />
           </div>
 
           {/* Contact Section */}
           {contactInfo && (
             <motion.div
-              initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
+              className="mx-auto mt-12 max-w-md rounded-lg p-6 text-center"
+              initial={{ opacity: 0, y: 20 }}
               transition={{ duration: 0.5, delay: 0.3 }}
-              className="max-w-md mx-auto mt-12 p-6 rounded-lg text-center"
             >
-              <div className="inline-flex items-center justify-center p-1.5 rounded-full mb-4">
+              <div className="mb-4 inline-flex items-center justify-center rounded-full p-1.5">
                 <Mail className="h-4 w-4" />
               </div>
-              <p className="text-sm font-medium text-foreground mb-1">{contactInfo.title}</p>
-              <p className="text-xs text-muted-foreground mb-4">{contactInfo.description}</p>
-              <Button size="sm" onClick={contactInfo.onContact}>
+              <p className="mb-1 font-medium text-foreground text-sm">
+                {contactInfo.title}
+              </p>
+              <p className="mb-4 text-muted-foreground text-xs">
+                {contactInfo.description}
+              </p>
+              <Button onClick={contactInfo.onContact} size="sm">
                 {contactInfo.buttonText}
               </Button>
             </motion.div>
           )}
         </div>
       </section>
-    )
-  },
-)
-FaqSection.displayName = "FaqSection"
+    );
+  }
+);
+FaqSection.displayName = "FaqSection";
 
 // Internal FaqItem component
 const FaqItem = React.forwardRef<
   HTMLDivElement,
   {
-    question: string
-    answer: string
-    index: number
+    question: string;
+    answer: string;
+    index: number;
   }
 >((props, ref) => {
-  const [isOpen, setIsOpen] = React.useState(false)
-  const { question, answer, index } = props
+  const [isOpen, setIsOpen] = React.useState(false);
+  const { question, answer, index } = props;
 
   return (
     <motion.div
-      ref={ref}
-      initial={{ opacity: 0, y: 10 }}
       animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.2, delay: index * 0.1 }}
       className={cn(
         "group rounded-lg",
         "transition-all duration-200 ease-in-out",
         "border border-border/50",
-        isOpen ? "bg-gradient-to-br from-background via-muted/50 to-background" : "hover:bg-muted/50",
+        isOpen
+          ? "bg-gradient-to-br from-background via-muted/50 to-background"
+          : "hover:bg-muted/50"
       )}
+      initial={{ opacity: 0, y: 10 }}
+      ref={ref}
+      transition={{ duration: 0.2, delay: index * 0.1 }}
     >
       <Button
-        variant="ghost"
+        className="h-auto w-full justify-between px-6 py-4 hover:bg-transparent"
         onClick={() => setIsOpen(!isOpen)}
-        className="w-full px-6 py-4 h-auto justify-between hover:bg-transparent"
+        variant="ghost"
       >
         <h3
           className={cn(
-            "text-base font-medium transition-colors duration-200 text-left",
+            "text-left font-medium text-base transition-colors duration-200",
             "text-foreground/70",
-            isOpen && "text-foreground",
+            isOpen && "text-foreground"
           )}
         >
           {question}
@@ -118,12 +129,12 @@ const FaqItem = React.forwardRef<
             rotate: isOpen ? 180 : 0,
             scale: isOpen ? 1.1 : 1,
           }}
-          transition={{ duration: 0.2 }}
           className={cn(
-            "p-0.5 rounded-full flex-shrink-0",
+            "flex-shrink-0 rounded-full p-0.5",
             "transition-colors duration-200",
-            isOpen ? "text-primary" : "text-muted-foreground",
+            isOpen ? "text-primary" : "text-muted-foreground"
           )}
+          transition={{ duration: 0.2 }}
         >
           <ChevronDown className="h-4 w-4" />
         </motion.div>
@@ -131,7 +142,6 @@ const FaqItem = React.forwardRef<
       <AnimatePresence initial={false}>
         {isOpen && (
           <motion.div
-            initial={{ height: 0, opacity: 0 }}
             animate={{
               height: "auto",
               opacity: 1,
@@ -142,13 +152,14 @@ const FaqItem = React.forwardRef<
               opacity: 0,
               transition: { duration: 0.2, ease: "easeIn" },
             }}
+            initial={{ height: 0, opacity: 0 }}
           >
-            <div className="px-6 pb-4 pt-2">
+            <div className="px-6 pt-2 pb-4">
               <motion.p
-                initial={{ y: -10, opacity: 0 }}
                 animate={{ y: 0, opacity: 1 }}
+                className="text-muted-foreground text-sm leading-relaxed"
                 exit={{ y: -10, opacity: 0 }}
-                className="text-sm text-muted-foreground leading-relaxed"
+                initial={{ y: -10, opacity: 0 }}
               >
                 {answer}
               </motion.p>
@@ -157,8 +168,8 @@ const FaqItem = React.forwardRef<
         )}
       </AnimatePresence>
     </motion.div>
-  )
-})
-FaqItem.displayName = "FaqItem"
+  );
+});
+FaqItem.displayName = "FaqItem";
 
-export { FaqSection }
+export { FaqSection };

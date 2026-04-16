@@ -32,6 +32,66 @@ const emailHandlers: {
   }) => Promise<void>;
 } = {};
 
+/**
+ * Build OAuth provider config from env vars.
+ *
+ * A provider is only registered when BOTH `<NAME>_CLIENT_ID` and
+ * `<NAME>_CLIENT_SECRET` are set. If exactly one half of the pair is
+ * configured we fail fast — a misconfigured provider silently attached
+ * with an empty secret would break the OAuth handshake in production
+ * and is almost always an env mistake.
+ */
+function resolveOAuthCredentials(
+  provider: string,
+  clientId: string | undefined,
+  clientSecret: string | undefined
+): { clientId: string; clientSecret: string } | null {
+  const normalizedId =
+    typeof clientId === "string" && clientId.length > 0 ? clientId : null;
+  const normalizedSecret =
+    typeof clientSecret === "string" && clientSecret.length > 0
+      ? clientSecret
+      : null;
+
+  if ((normalizedId === null) !== (normalizedSecret === null)) {
+    throw new Error(
+      `${provider} OAuth is misconfigured: ${
+        normalizedId !== null
+          ? `${provider.toUpperCase()}_CLIENT_ID is set but ${provider.toUpperCase()}_CLIENT_SECRET is missing`
+          : `${provider.toUpperCase()}_CLIENT_SECRET is set but ${provider.toUpperCase()}_CLIENT_ID is missing`
+      }. Set both or neither.`
+    );
+  }
+
+  if (normalizedId === null || normalizedSecret === null) {
+    return null;
+  }
+
+  return { clientId: normalizedId, clientSecret: normalizedSecret };
+}
+
+const googleCreds = resolveOAuthCredentials(
+  "google",
+  process.env.GOOGLE_CLIENT_ID,
+  process.env.GOOGLE_CLIENT_SECRET
+);
+const facebookCreds = resolveOAuthCredentials(
+  "facebook",
+  process.env.FACEBOOK_CLIENT_ID,
+  process.env.FACEBOOK_CLIENT_SECRET
+);
+
+const socialProviders: {
+  google?: { clientId: string; clientSecret: string };
+  facebook?: { clientId: string; clientSecret: string };
+} = {};
+if (googleCreds) {
+  socialProviders.google = googleCreds;
+}
+if (facebookCreds) {
+  socialProviders.facebook = facebookCreds;
+}
+
 if (resend !== null) {
   const mailer: Resend = resend;
 
@@ -111,17 +171,9 @@ export const auth = betterAuth({
     ...emailHandlers,
   },
 
-  // Social providers
-  socialProviders: {
-    google: {
-      clientId: process.env.GOOGLE_CLIENT_ID || "",
-      clientSecret: process.env.GOOGLE_CLIENT_SECRET || "",
-    },
-    facebook: {
-      clientId: process.env.FACEBOOK_CLIENT_ID || "",
-      clientSecret: process.env.FACEBOOK_CLIENT_SECRET || "",
-    },
-  },
+  // Social providers — only registered when both id and secret are set.
+  // See resolveOAuthCredentials above.
+  socialProviders,
 
   // User configuration
   user: {

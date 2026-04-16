@@ -1,10 +1,10 @@
 import { type NextRequest, NextResponse } from "next/server";
+import type { SerializedCurrentUserState } from "@/lib/identity/core/domain.ts";
+import { serializeCurrentUser } from "@/lib/identity/core/domain.ts";
 import {
   createServerIdentityPorts,
   resolveCurrentUser,
-} from "@/lib/identity";
-import { serializeCurrentUser } from "@/lib/identity/core/domain";
-import type { SerializedCurrentUserState } from "@/lib/identity/core/domain";
+} from "@/lib/identity/index.ts";
 
 // Returns the resolved CurrentUserState for the caller in serializable form.
 // The client hook (`useCurrentUser` in lib/identity/client.ts) fetches this

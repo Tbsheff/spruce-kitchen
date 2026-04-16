@@ -9,9 +9,10 @@
  * - Sample audit logs
  */
 
+import { resolve } from "node:path";
+import type { BillingType, OrderStatus, PlanType } from "@/lib/types/enums.ts";
 // Load environment variables
 import { config } from "dotenv";
-import { resolve } from "path";
 
 // Load .env.local file
 config({ path: resolve(process.cwd(), ".env.local") });
@@ -26,6 +27,7 @@ import {
   type NewMealPlan,
   type NewOrder,
   type NewUser,
+  type Role,
   order,
   permission,
   rateLimitRecord,
@@ -47,6 +49,13 @@ async function hashPassword(password: string): Promise<string> {
 // Sample data. Arrays are typed with the Drizzle-inferred `New*` types so
 // string literals narrow correctly to the `$type<…>()` unions on the columns
 // (role, planType, billingType, status) without explicit `as` casts.
+type SeedUser = Omit<NewUser, "role"> & { role: Role };
+type SeedMealPlan = Omit<NewMealPlan, "planType" | "billingType"> & {
+  planType: PlanType;
+  billingType: BillingType;
+};
+type SeedOrder = Omit<NewOrder, "status"> & { status: OrderStatus };
+
 const SEED_PERMISSIONS = [
   {
     id: "user:read",
@@ -127,7 +136,7 @@ const SEED_PERMISSIONS = [
   },
 ];
 
-const SEED_USERS: NewUser[] = [
+const SEED_USERS: SeedUser[] = [
   {
     id: "customer-1",
     email: "customer@test.com",
@@ -162,7 +171,7 @@ const SEED_USERS: NewUser[] = [
   },
 ];
 
-const SEED_MEAL_PLANS: NewMealPlan[] = [
+const SEED_MEAL_PLANS: SeedMealPlan[] = [
   {
     id: "plan-small-weekly",
     userId: "customer-1",
@@ -197,7 +206,7 @@ const SEED_MEAL_PLANS: NewMealPlan[] = [
   },
 ];
 
-const SEED_ORDERS: NewOrder[] = [
+const SEED_ORDERS: SeedOrder[] = [
   {
     id: "order-1",
     userId: "customer-1",

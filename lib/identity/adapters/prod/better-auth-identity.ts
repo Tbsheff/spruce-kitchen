@@ -17,10 +17,9 @@ function toRawSession(result: BetterAuthSession): RawSession | null {
   const { user, session } = result;
   // Better Auth exposes `role` via additionalFields; it appears as a string on
   // the user object at runtime even though the inferred type may narrow it.
+  // Use a type predicate instead of double-casting through `unknown`.
   const role =
-    typeof (user as unknown as { role?: unknown }).role === "string"
-      ? (user as unknown as { role: string }).role
-      : null;
+    "role" in user && typeof user.role === "string" ? user.role : null;
 
   return {
     userId: user.id,

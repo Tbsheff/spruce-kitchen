@@ -2,7 +2,7 @@
 
 import { ArrowLeft, ArrowRight } from "lucide-react";
 import { useRouter } from "next/navigation";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { AuthGuard } from "@/components/auth/auth-guard.tsx";
 import { BoxSizeSelection } from "@/components/onboarding/box-size-selection.tsx";
 import { DeliveryPlan } from "@/components/onboarding/delivery-plan.tsx";
@@ -12,6 +12,11 @@ import { Footer } from "@/components/ui/footer.tsx";
 import { Header } from "@/components/ui/header.tsx";
 import { toast } from "@/hooks/use-toast.ts";
 import { useAuth } from "@/lib/auth-context.tsx";
+import { calculateOrderTotal } from "@/lib/pricing.ts";
+import {
+  type CompletedOrderSnapshot,
+  onboardingStorage,
+} from "@/lib/storage/onboarding-persistence.ts";
 import { trpc } from "@/lib/trpc/client.ts";
 import { useCreateMealPlan } from "@/lib/trpc/hooks.ts";
 
@@ -26,6 +31,58 @@ interface Selections {
 }
 
 const steps = ["Select Meals", "Choose Size", "Plan & Type"] as const;
+const DELIVERY_LEAD_DAYS: Record<
+  NonNullable<Selections["frequency"]> | "one-time",
+  number
+> = {
+  weekly: 7,
+  "bi-weekly": 14,
+  monthly: 30,
+  "one-time": 7,
+};
+
+function estimateDeliveryDateIso(
+  completedAt: number,
+  purchaseType: PurchaseType,
+  frequency: Selections["frequency"]
+): string {
+  const daysUntilDelivery =
+    purchaseType === "subscription" && frequency
+      ? DELIVERY_LEAD_DAYS[frequency]
+      : DELIVERY_LEAD_DAYS["one-time"];
+  const estimatedDeliveryDate = new Date(completedAt);
+  estimatedDeliveryDate.setDate(
+    estimatedDeliveryDate.getDate() + daysUntilDelivery
+  );
+  return estimatedDeliveryDate.toISOString();
+}
+
+function getStepValidationError(
+  step: number,
+  selections: Selections,
+  totalMeals: number
+): { description?: string; title: string } | null {
+  if (step === 0 && totalMeals !== 10) {
+    const remaining = 10 - totalMeals;
+    return {
+      title: "Please select exactly 10 meals",
+      description: `You need ${remaining > 0 ? `${remaining} more` : `${Math.abs(remaining)} fewer`} meals.`,
+    };
+  }
+  if (step === 1 && !selections.size) {
+    return { title: "Please choose a box size" };
+  }
+  if (step !== 2) {
+    return null;
+  }
+  if (!selections.purchaseType) {
+    return { title: "Please choose a purchase type" };
+  }
+  if (selections.purchaseType === "subscription" && !selections.frequency) {
+    return { title: "Please choose a delivery schedule" };
+  }
+  return null;
+}
 
 function OnboardingContent() {
   const router = useRouter();
@@ -40,7 +97,7 @@ function OnboardingContent() {
     meals: {},
   }));
 
-  useMemo(() => {
+  useEffect(() => {
     if (availableMeals && Object.keys(data.meals).length === 0) {
       const initialMeals: Record<string, number> = {};
       for (const meal of availableMeals) {
@@ -54,7 +111,6 @@ function OnboardingContent() {
     () => Object.values(data.meals).reduce((a, b) => a + b, 0),
     [data.meals]
   );
-  const remaining = 10 - totalMeals;
 
   const increment = (mealId: string) => {
     setData((prev) => {
@@ -106,12 +162,44 @@ function OnboardingContent() {
     }
 
     try {
+      onboardingStorage.clearCompletedOrder();
       const result = await createMealPlan.mutateAsync({
         boxSize: data.size,
         planType: data.purchaseType,
         deliveryFrequency: data.frequency,
         selectedMeals: data.meals,
       });
+
+      const completedAt = Date.now();
+      const pricing = calculateOrderTotal(data.size, data.purchaseType);
+      const mealLookup = new Map(
+        (availableMeals ?? []).map((meal) => [meal.id, meal.name])
+      );
+      const completedOrder: CompletedOrderSnapshot = {
+        billingType: data.purchaseType,
+        boxSize: data.size,
+        completedAt,
+        estimatedDeliveryDateIso: estimateDeliveryDateIso(
+          completedAt,
+          data.purchaseType,
+          data.frequency
+        ),
+        id: result.id,
+        meals: Object.entries(data.meals)
+          .filter(([, quantity]) => quantity > 0)
+          .map(([mealId, quantity]) => ({
+            id: mealId,
+            name: mealLookup.get(mealId) ?? mealId,
+            quantity,
+          })),
+        pricing,
+        ...(data.purchaseType === "subscription" && data.frequency
+          ? { deliveryFrequency: data.frequency }
+          : {}),
+      };
+
+      onboardingStorage.saveCompletedOrder(completedOrder);
+      onboardingStorage.clearProgress();
 
       console.log("Meal plan created:", result);
 
@@ -137,27 +225,12 @@ function OnboardingContent() {
   };
 
   const next = async () => {
-    if (step === 0 && totalMeals !== 10) {
-      toast({
-        title: "Please select exactly 10 meals",
-        description: `You need ${remaining > 0 ? `${remaining} more` : `${Math.abs(remaining)} fewer`} meals.`,
-      });
-      return;
-    }
-    if (step === 1 && !data.size) {
-      toast({ title: "Please choose a box size" });
+    const validationError = getStepValidationError(step, data, totalMeals);
+    if (validationError) {
+      toast(validationError);
       return;
     }
     if (step === 2) {
-      if (!data.purchaseType) {
-        toast({ title: "Please choose a purchase type" });
-        return;
-      }
-      if (data.purchaseType === "subscription" && !data.frequency) {
-        toast({ title: "Please choose a delivery schedule" });
-        return;
-      }
-
       const success = await saveMealPlan();
       if (!success) {
         return;

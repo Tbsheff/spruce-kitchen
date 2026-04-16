@@ -4,7 +4,7 @@
  */
 
 import { validatePassword } from "./password-policy.ts";
-import { SecureAuditService } from "./secure-audit.ts";
+import { logAudit, logSecurityEvent } from "./simple-audit.ts";
 
 export interface AuthPasswordMiddleware {
   validatePasswordChange: (params: {
@@ -40,7 +40,7 @@ export const authPasswordMiddleware: AuthPasswordMiddleware = {
 
       if (!result.isValid) {
         // Log failed password policy validation
-        await SecureAuditService.logSecurityEvent(
+        await logSecurityEvent(
           "suspicious_activity",
           undefined, // No user ID yet since signup failed
           {
@@ -61,7 +61,7 @@ export const authPasswordMiddleware: AuthPasswordMiddleware = {
       }
 
       // Log successful password validation (for security monitoring)
-      await SecureAuditService.log({
+      await logAudit({
         userId: null,
         action: "auth:password_policy_validated",
         resource: "user",
@@ -109,7 +109,7 @@ export const authPasswordMiddleware: AuthPasswordMiddleware = {
 
       if (!result.isValid) {
         // Log failed password change attempt
-        await SecureAuditService.logSecurityEvent(
+        await logSecurityEvent(
           "suspicious_activity",
           userId,
           {
@@ -130,7 +130,7 @@ export const authPasswordMiddleware: AuthPasswordMiddleware = {
 
       // Check if new password is the same as old password
       if (oldPassword === newPassword) {
-        await SecureAuditService.logSecurityEvent(
+        await logSecurityEvent(
           "suspicious_activity",
           userId,
           {
@@ -147,7 +147,7 @@ export const authPasswordMiddleware: AuthPasswordMiddleware = {
       }
 
       // Log successful password change validation
-      await SecureAuditService.log({
+      await logAudit({
         userId,
         action: "auth:password_change_validated",
         resource: "user",

@@ -1,4 +1,8 @@
-import type { Role as DbRole, User as DbUser } from "@/lib/db/schema.ts";
+import type {
+  Role as DbRole,
+  Session as DbSession,
+  User as DbUser,
+} from "@/lib/db/schema.ts";
 
 /**
  * Canonical User type for the entire app. Derived from the Drizzle schema,
@@ -13,18 +17,10 @@ import type { Role as DbRole, User as DbUser } from "@/lib/db/schema.ts";
 export type User = DbUser;
 
 /**
- * Canonical Session type. Matches the `session` table shape.
+ * Canonical Session type. Derived from the Drizzle `session` table shape so
+ * the DB row and app session type cannot drift apart.
  */
-export interface Session {
-  createdAt: Date;
-  expiresAt: Date;
-  id: string;
-  ipAddress: string | null;
-  token: string;
-  updatedAt: Date;
-  userAgent: string | null;
-  userId: string;
-}
+export type Session = DbSession;
 
 /**
  * Envelope returned by `getSession()` / stored in the client auth context.

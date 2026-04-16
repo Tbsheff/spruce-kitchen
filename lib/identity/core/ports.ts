@@ -1,10 +1,34 @@
-// Ports: interfaces this module depends on. No implementations live here.
-// The core imports only types from this file. Adapters (prod / test) implement these.
+// A JSON-serializable value that may appear in an AuditEvent's `details` map.
+// The set is intentionally narrow — audit sinks persist these values, so
+// arbitrary/unknown shapes are rejected at the type level. Callers that hold
+// genuinely unstructured data should shape or stringify it at the source.
+//
+// `undefined` is permitted because `JSON.stringify` drops keys whose value is
+// `undefined` — callers can forward Zod-parsed objects with optional fields
+// without littering call sites with `?? null` conversions. Shape aligns with
+// `lib/types/audit.ts`'s `AuditDetailValue` so a port-typed `AuditDetails`
+// flows into the downstream audit sink without needing a cast.
+export type AuditValue =
+  | string
+  | number
+  | boolean
+  | null
+  | undefined
+  | AuditValue[]
+  | { [key: string]: AuditValue };
+
+export type AuditDetails = { [key: string]: AuditValue };
+
+// Runtime guard for AuditDetails. Pragmatic: validates only the top level
+// (plain, non-array object). Nested values are trusted once the outer shape
+// passes — deep validation would require walking every key recursively and
+// would not meaningfully harden the audit pipeline.
+export function isAuditDetails(v: unknown): v is AuditDetails {
+  return typeof v === "object" && v !== null && !Array.isArray(v);
+}
 
 export type Role = "customer" | "admin" | "super_admin";
 
-// A permission name follows the convention "resource:action[:scope]"
-// e.g., "mealplan:read:own", "admin:dashboard", "user:write:all"
 export type Permission = string;
 
 export interface RawSession {
@@ -27,7 +51,7 @@ export interface RequestMetadata {
 
 export interface AuditEvent {
   action: string;
-  details?: Record<string, unknown>;
+  details?: AuditDetails;
   ipAddress?: string;
   resource: string;
   resourceId?: string;
@@ -36,17 +60,14 @@ export interface AuditEvent {
 }
 
 export interface IdentityProvider {
-  // Returns the raw session for this request, or null if anonymous.
   getSession(): Promise<RawSession | null>;
 }
 
 export interface AuthorizationStore {
-  // Fetches the permission set for a role. Called at most once per request.
   getAuthorizationForRole(role: Role): Promise<RoleAuthorization>;
 }
 
 export interface AuditSink {
-  // Fire-and-forget by contract. Implementations may be async internally.
   emit(event: AuditEvent): void;
 }
 
@@ -54,8 +75,6 @@ export interface Clock {
   nowMs(): number;
 }
 
-// All ports a resolver needs. RequestMetadata and AuditSink are not required
-// for resolution itself; they enter at the call site where they apply.
 export interface IdentityPorts {
   authz: AuthorizationStore;
   clock: Clock;

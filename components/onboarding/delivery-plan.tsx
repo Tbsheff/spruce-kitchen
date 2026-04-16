@@ -16,12 +16,16 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select.tsx";
-
-type PurchaseType = "one-time" | "subscription";
+import {
+  type Frequency,
+  isFrequency,
+  isPurchaseType,
+  type PurchaseType,
+} from "@/lib/utils/type-guards.ts";
 
 interface DeliveryPlanProps {
-  frequency?: "weekly" | "bi-weekly" | "monthly";
-  onFrequencyChange: (frequency: "weekly" | "bi-weekly" | "monthly") => void;
+  frequency?: Frequency;
+  onFrequencyChange: (frequency: Frequency) => void;
   onPurchaseTypeChange: (type: PurchaseType) => void;
   purchaseType?: PurchaseType;
 }
@@ -46,8 +50,13 @@ export function DeliveryPlan({
             <Label className="font-semibold text-base">Purchase Type</Label>
             <RadioGroup
               className="space-y-3"
-              onValueChange={(v: PurchaseType) => onPurchaseTypeChange(v)}
-              value={purchaseType}
+              onValueChange={(v) => {
+                if (isPurchaseType(v)) {
+                  onPurchaseTypeChange(v);
+                }
+              }}
+              {...(purchaseType !== null &&
+                purchaseType !== undefined && { value: purchaseType })}
             >
               <div className="flex items-start gap-4 rounded-lg border p-4 transition-colors hover:bg-muted/50">
                 <RadioGroupItem
@@ -83,7 +92,14 @@ export function DeliveryPlan({
               <Label className="font-semibold text-base">
                 Delivery Schedule
               </Label>
-              <Select onValueChange={onFrequencyChange} value={frequency ?? ""}>
+              <Select
+                onValueChange={(v) => {
+                  if (isFrequency(v)) {
+                    onFrequencyChange(v);
+                  }
+                }}
+                value={frequency}
+              >
                 <SelectTrigger className="w-full">
                   <SelectValue placeholder="Choose delivery frequency" />
                 </SelectTrigger>

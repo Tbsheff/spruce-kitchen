@@ -16,6 +16,7 @@ import type {
  * `plan-helpers.ts` (the nearest module with meal-related helpers)
  * can brand raw strings without a second import.
  */
+// biome-ignore lint/performance/noBarrelFile: intentional re-export for module ergonomics
 export { mealId } from "@/lib/types/ids.ts";
 
 /**
@@ -139,6 +140,8 @@ export function recommendedMealCount(h: HouseholdSize): number {
       return 10;
     case "big-family":
       return 12;
+    default:
+      return 10;
   }
 }
 

@@ -20,6 +20,7 @@ export type {
   DietTag,
   HouseholdSize,
 } from "@/lib/types/enums.ts";
+// biome-ignore lint/performance/noBarrelFile: intentional facade for the onboarding state hook
 export {
   isAllergenTag,
   isCadence,
@@ -198,6 +199,9 @@ function reducer(state: OnboardingState, action: Action): OnboardingState {
 
     case "RESET":
       return initialState;
+
+    default:
+      return state;
   }
 }
 

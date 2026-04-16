@@ -11,7 +11,10 @@ interface AuthGuardProps {
   readonly fallback?: React.ReactNode;
 }
 
-export function AuthGuard({ children, fallback }: AuthGuardProps): JSX.Element | null {
+export function AuthGuard({
+  children,
+  fallback,
+}: AuthGuardProps): JSX.Element | null {
   const router = useRouter();
   const state = useCurrentUser();
 

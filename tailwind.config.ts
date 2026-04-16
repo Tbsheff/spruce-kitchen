@@ -1,4 +1,4 @@
-import type { Config } from "tailwindcss"
+import type { Config } from "tailwindcss";
 
 export default {
   darkMode: ["class"],
@@ -64,10 +64,22 @@ export default {
           ring: "hsl(var(--sidebar-ring))",
         },
         // Brand palette convenience colors (mapped to CSS variables)
-        raisin: { DEFAULT: "hsl(var(--brand-raisin))", foreground: "hsl(var(--brand-isabelline))" },
-        isabelline: { DEFAULT: "hsl(var(--brand-isabelline))", foreground: "hsl(var(--brand-raisin))" },
-        hookers: { DEFAULT: "hsl(var(--brand-hookers))", foreground: "hsl(var(--brand-isabelline))" },
-        persian: { DEFAULT: "hsl(var(--brand-persian))", foreground: "hsl(var(--brand-isabelline))" },
+        raisin: {
+          DEFAULT: "hsl(var(--brand-raisin))",
+          foreground: "hsl(var(--brand-isabelline))",
+        },
+        isabelline: {
+          DEFAULT: "hsl(var(--brand-isabelline))",
+          foreground: "hsl(var(--brand-raisin))",
+        },
+        hookers: {
+          DEFAULT: "hsl(var(--brand-hookers))",
+          foreground: "hsl(var(--brand-isabelline))",
+        },
+        persian: {
+          DEFAULT: "hsl(var(--brand-persian))",
+          foreground: "hsl(var(--brand-isabelline))",
+        },
       },
       borderRadius: {
         lg: "var(--radius)",
@@ -80,7 +92,10 @@ export default {
           to: { height: "var(--radix-accordion-content-height)", opacity: "1" },
         },
         "accordion-up": {
-          from: { height: "var(--radix-accordion-content-height)", opacity: "1" },
+          from: {
+            height: "var(--radix-accordion-content-height)",
+            opacity: "1",
+          },
           to: { height: "0", opacity: "0" },
         },
         // Added global animations for landing experience
@@ -124,4 +139,4 @@ export default {
     },
   },
   plugins: [require("tailwindcss-animate")],
-} satisfies Config
+} satisfies Config;

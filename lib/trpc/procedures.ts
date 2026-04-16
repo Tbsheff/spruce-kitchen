@@ -1,12 +1,12 @@
 import { initTRPC, TRPCError } from "@trpc/server";
 import superjson from "superjson";
 import type { Role } from "@/lib/db/schema.ts";
+import { isAuditDetails } from "@/lib/identity/core/ports.ts";
 import { sanitizeObject } from "@/lib/security/input-validation.ts";
 import type { AuditDetails } from "@/lib/security/simple-audit.ts";
 import {
   logAudit,
   logPermissionDenied,
-  logSecurityEvent,
 } from "@/lib/security/simple-audit.ts";
 import type { Context } from "./server.ts";
 
@@ -116,23 +116,22 @@ const createProtectedProcedure = (
             isSuperAdmin: () => me.isSuperAdmin(),
           },
           audit: {
-            // `details` accepts any plain record — callers commonly pass their
-            // procedure input directly, which may contain `string | undefined`
-            // fields that don't fit the strict AuditDetailValue shape. We cast
-            // to AuditDetails at the boundary; logAudit serializes
-            // whatever's given.
+            // `details` is `unknown` at the caller boundary — routers often
+            // forward sanitized procedure input directly. The `isAuditDetails`
+            // guard validates the top-level shape (plain object); values that
+            // fail the guard are persisted as `null` rather than coerced.
             log: async (
               action: string,
               resource: string,
               resourceId?: string,
-              details?: Record<string, unknown>
+              details?: unknown
             ) =>
               logAudit({
                 userId: me.id,
                 action,
                 resource,
                 resourceId: resourceId ?? null,
-                details: (details as AuditDetails | undefined) ?? null,
+                details: isAuditDetails(details) ? details : null,
                 ipAddress,
                 userAgent,
               }),
@@ -236,45 +235,3 @@ function sanitizeForAudit(value: unknown): AuditDetails {
   return { value: String(value) };
 }
 
-const rateLimitMap = new Map<string, { count: number; resetTime: number }>();
-
-export const rateLimitedProcedure = (maxRequests = 100, windowMs = 60_000) => {
-  return protectedProcedure.use(({ ctx, next }) => {
-    const userId = ctx.me.id;
-    const now = Date.now();
-    const userLimit = rateLimitMap.get(userId);
-    const { ipAddress, userAgent } = metadataOf(ctx);
-
-    if (userLimit) {
-      if (now < userLimit.resetTime) {
-        if (userLimit.count >= maxRequests) {
-          logSecurityEvent(
-            "rate_limit_exceeded",
-            userId,
-            { limit: maxRequests, window: windowMs },
-            ipAddress,
-            userAgent
-          ).catch((err) => {
-            console.error("audit log failed:", err);
-          });
-
-          throw new TRPCError({
-            code: "TOO_MANY_REQUESTS",
-            message: "Rate limit exceeded. Please try again later.",
-          });
-        }
-        userLimit.count += 1;
-      } else {
-        userLimit.count = 1;
-        userLimit.resetTime = now + windowMs;
-      }
-    } else {
-      rateLimitMap.set(userId, {
-        count: 1,
-        resetTime: now + windowMs,
-      });
-    }
-
-    return next();
-  });
-};

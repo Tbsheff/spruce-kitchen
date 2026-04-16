@@ -47,17 +47,6 @@ const INTERACTIVE_DESCENDANT_SELECTOR = [
   "[role='tab']",
 ].join(", ");
 
-function isKeyboardInteractiveDescendant(
-  target: EventTarget | null,
-  currentTarget: EventTarget | null
-): boolean {
-  return (
-    target instanceof HTMLElement &&
-    target !== currentTarget &&
-    target.closest(INTERACTIVE_DESCENDANT_SELECTOR) !== null
-  );
-}
-
 function useCarousel() {
   const context = React.useContext(CarouselContext);
 
@@ -84,6 +73,7 @@ const Carousel = React.forwardRef<
     },
     ref
   ) => {
+    const carouselRootRef = React.useRef<HTMLDivElement | null>(null);
     const [carouselRef, api] = useEmblaCarousel(
       {
         ...opts,
@@ -111,28 +101,20 @@ const Carousel = React.forwardRef<
       api?.scrollNext();
     }, [api]);
 
-    const handleKeyDown = React.useCallback(
-      (event: React.KeyboardEvent<HTMLDivElement>) => {
-        if (
-          event.defaultPrevented ||
-          isKeyboardInteractiveDescendant(event.target, event.currentTarget)
-        ) {
+    const setCarouselRootRef = React.useCallback(
+      (node: HTMLDivElement | null) => {
+        carouselRootRef.current = node;
+
+        if (typeof ref === "function") {
+          ref(node);
           return;
         }
 
-        const prevKey = orientation === "horizontal" ? "ArrowLeft" : "ArrowUp";
-        const nextKey =
-          orientation === "horizontal" ? "ArrowRight" : "ArrowDown";
-
-        if (event.key === prevKey) {
-          event.preventDefault();
-          scrollPrev();
-        } else if (event.key === nextKey) {
-          event.preventDefault();
-          scrollNext();
+        if (ref) {
+          ref.current = node;
         }
       },
-      [orientation, scrollPrev, scrollNext]
+      [ref]
     );
 
     React.useEffect(() => {
@@ -158,6 +140,46 @@ const Carousel = React.forwardRef<
       };
     }, [api, onSelect]);
 
+    React.useEffect(() => {
+      const node = carouselRootRef.current;
+      if (!node) {
+        return;
+      }
+
+      const handleKeyDown = (event: KeyboardEvent) => {
+        if (event.defaultPrevented) {
+          return;
+        }
+
+        const target = event.target;
+        if (
+          target instanceof HTMLElement &&
+          target !== node &&
+          target.closest(INTERACTIVE_DESCENDANT_SELECTOR)
+        ) {
+          return;
+        }
+
+        const prevKey = orientation === "horizontal" ? "ArrowLeft" : "ArrowUp";
+        const nextKey =
+          orientation === "horizontal" ? "ArrowRight" : "ArrowDown";
+
+        if (event.key === prevKey) {
+          event.preventDefault();
+          scrollPrev();
+        } else if (event.key === nextKey) {
+          event.preventDefault();
+          scrollNext();
+        }
+      };
+
+      node.addEventListener("keydown", handleKeyDown);
+
+      return () => {
+        node.removeEventListener("keydown", handleKeyDown);
+      };
+    }, [orientation, scrollPrev, scrollNext]);
+
     return (
       <CarouselContext.Provider
         value={{
@@ -176,8 +198,7 @@ const Carousel = React.forwardRef<
         <div
           aria-roledescription="carousel"
           className={cn("relative", className)}
-          onKeyDown={handleKeyDown}
-          ref={ref}
+          ref={setCarouselRootRef}
           role="region"
           {...props}
         >

@@ -129,40 +129,53 @@ export function sanitizeId(id: string): string {
 }
 
 /**
- * Recursively sanitize an object
+ * Recursively sanitize an object.
+ *
+ * Return type is preserved as the input type: this sanitizer rewrites string
+ * values in place (HTML-encode, strip dangerous patterns) without changing
+ * the shape, so callers don't need to re-narrow after the call. The inner
+ * helper is typed as `(v: unknown) => unknown` because recursion crosses
+ * arbitrary nested shapes; we cast once at the outer boundary.
  */
-export function sanitizeObject(obj: unknown): unknown {
-  if (obj === null || obj === undefined) {
-    return obj;
-  }
-
-  if (typeof obj === "string") {
-    return sanitizeString(obj);
-  }
-
-  if (typeof obj === "number" || typeof obj === "boolean") {
-    return obj;
-  }
-
-  if (obj instanceof Date) {
-    return obj;
-  }
-
-  if (Array.isArray(obj)) {
-    return obj.map((value) => sanitizeObject(value));
-  }
-
-  if (typeof obj === "object") {
-    const sanitized: Record<string, unknown> = {};
-    for (const [key, value] of Object.entries(obj as Record<string, unknown>)) {
-      // Sanitize both keys and values
-      const sanitizedKey = sanitizeString(key);
-      sanitized[sanitizedKey] = sanitizeObject(value);
+export function sanitizeObject<T>(obj: T): T {
+  const walk = (value: unknown): unknown => {
+    if (value === null || value === undefined) {
+      return value;
     }
-    return sanitized;
-  }
 
-  return obj;
+    if (typeof value === "string") {
+      return sanitizeString(value);
+    }
+
+    if (typeof value === "number" || typeof value === "boolean") {
+      return value;
+    }
+
+    if (value instanceof Date) {
+      return value;
+    }
+
+    if (Array.isArray(value)) {
+      return value.map((entry) => walk(entry));
+    }
+
+    if (typeof value === "object") {
+      // Safe internal narrowing: TS cannot narrow `unknown` past `object`,
+      // so hoist the cast to a single local for clarity.
+      const record = value as Record<string, unknown>;
+      const sanitized: Record<string, unknown> = {};
+      for (const [key, entry] of Object.entries(record)) {
+        // Sanitize both keys and values
+        const sanitizedKey = sanitizeString(key);
+        sanitized[sanitizedKey] = walk(entry);
+      }
+      return sanitized;
+    }
+
+    return value;
+  };
+
+  return walk(obj) as T;
 }
 
 /**
@@ -207,7 +220,7 @@ export const inputSanitizationMiddleware = <
   // Sanitize input if present
   if (opts.input) {
     try {
-      opts.input = sanitizeObject(opts.input) as T;
+      opts.input = sanitizeObject(opts.input);
     } catch (_error) {
       throw new TRPCError({
         code: "BAD_REQUEST",
