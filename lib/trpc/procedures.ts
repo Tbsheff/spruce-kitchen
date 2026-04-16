@@ -226,11 +226,11 @@ export const auditedProcedure = (action: string, resource: string) => {
 // auditedProcedure can log it without type errors. Objects become nested
 // records; non-serializable values degrade to their string form.
 function sanitizeForAudit(value: unknown): AuditDetails {
+  if (isAuditDetails(value)) {
+    return value;
+  }
   if (value === null || value === undefined) {
     return {};
-  }
-  if (typeof value === "object") {
-    return value as AuditDetails;
   }
   return { value: String(value) };
 }

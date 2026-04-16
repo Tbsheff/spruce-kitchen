@@ -4,7 +4,6 @@ import { ArrowLeft, ArrowRight } from "lucide-react";
 import Link from "next/link";
 import type React from "react";
 import { Button } from "@/components/ui/button.tsx";
-import { Logo } from "@/components/ui/logo.tsx";
 import { Progress } from "@/components/ui/progress.tsx";
 
 interface OnboardingShellProps {
@@ -65,10 +64,10 @@ export function OnboardingShell({
       <header className="sticky top-0 z-40 border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/80">
         <div className="container flex h-14 items-center justify-between gap-4 px-4 lg:px-6">
           <Link
-            className="transition-opacity hover:opacity-80"
+            className="font-semibold tracking-tight transition-opacity hover:opacity-80"
             href="/dashboard"
           >
-            <Logo />
+            Spruce Kitchen
           </Link>
           <Button
             asChild

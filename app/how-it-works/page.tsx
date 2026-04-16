@@ -3,7 +3,27 @@ import Link from "next/link";
 import { Button } from "@/components/ui/button.tsx";
 import { Footer } from "@/components/ui/footer.tsx";
 import { Header } from "@/components/ui/header.tsx";
-import { HowItWorks } from "@/components/ui/how-it-works.tsx";
+
+const processSteps = [
+  {
+    id: "01",
+    title: "Choose Your Meals",
+    description:
+      "Browse our weekly menu of chef-crafted frozen meals and pick the box that fits your household.",
+  },
+  {
+    id: "02",
+    title: "We Prep Everything",
+    description:
+      "Our kitchen prepares each meal with real ingredients, portions it carefully, and freezes it at peak freshness.",
+  },
+  {
+    id: "03",
+    title: "Store, Heat, Enjoy",
+    description:
+      "Your box arrives frozen and ready to store, then goes from freezer to table in minutes when you need it.",
+  },
+];
 
 const heatingMethods = [
   {
@@ -44,7 +64,28 @@ export default function HowItWorksPage() {
           </div>
         </section>
 
-        <HowItWorks />
+        <section className="bg-background py-20">
+          <div className="container mx-auto px-6 lg:px-12">
+            <div className="grid gap-8 md:grid-cols-3">
+              {processSteps.map((step) => (
+                <article
+                  className="rounded-2xl border border-border/60 bg-card p-8"
+                  key={step.id}
+                >
+                  <div className="font-semibold text-accent text-sm tracking-[0.3em] uppercase">
+                    {step.id}
+                  </div>
+                  <h2 className="mt-4 font-semibold text-2xl text-foreground">
+                    {step.title}
+                  </h2>
+                  <p className="mt-4 text-muted-foreground leading-relaxed">
+                    {step.description}
+                  </p>
+                </article>
+              ))}
+            </div>
+          </div>
+        </section>
 
         <section className="bg-muted/50 px-4 py-16">
           <div className="mx-auto max-w-4xl">

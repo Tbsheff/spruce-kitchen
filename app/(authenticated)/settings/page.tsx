@@ -54,8 +54,11 @@ import { Textarea } from "@/components/ui/textarea.tsx";
 import { toast } from "@/hooks/use-toast.ts";
 import { useAuth } from "@/lib/auth-context.tsx";
 import { trpc } from "@/lib/trpc/client.ts";
+import { BOX_SIZES, type BoxSize } from "@/lib/types/enums.ts";
 
-type ServingSize = "small" | "medium" | "large";
+// ServingSize reuses the canonical `BoxSize` literal-union to avoid local
+// drift from the enum in `lib/types/enums.ts` (small | medium | large).
+type ServingSize = BoxSize;
 
 interface AccountFields {
   email: string;
@@ -85,6 +88,20 @@ interface PreferencesData {
   servingSize: ServingSize;
 }
 
+type OptionalPick<Type, Keys extends keyof Type> = {
+  [Key in keyof Pick<Type, Keys>]?: Type[Key];
+};
+
+type AccountEdits = OptionalPick<AccountFields, "email" | "name">;
+type AddressEdits = OptionalPick<
+  AddressData,
+  "city" | "country" | "instructions" | "state" | "street" | "zipCode"
+>;
+type PreferenceEdits = OptionalPick<
+  PreferencesData,
+  "allergies" | "dietaryRestrictions" | "servingSize"
+>;
+
 const DEFAULT_ADDRESS_DATA: AddressData = {
   street: "",
   city: "",
@@ -100,38 +117,56 @@ const DEFAULT_PREFERENCES: PreferencesData = {
   servingSize: "medium",
 };
 
-type RawDeliveryAddress = AddressData | null | undefined;
-type RawPreferences =
-  | {
-      dietaryRestrictions?: string[];
-      allergies?: string[];
-      servingSize?: ServingSize;
-    }
-  | null
-  | undefined;
+// The tRPC JSONB columns (`deliveryAddress`, `preferences`) are typed as
+// `unknown` from the DB's perspective and can legitimately be `null`.
+// Rather than trust an `as AddressData` cast that blows up at runtime if
+// a stale row ever has an unexpected shape, we validate with Zod and
+// fall back to defaults when a field is missing or malformed.
+const AddressSchema = z
+  .object({
+    street: z.string().optional(),
+    city: z.string().optional(),
+    state: z.string().optional(),
+    zipCode: z.string().optional(),
+    country: z.string().optional(),
+    instructions: z.string().optional(),
+  })
+  .partial();
 
-function hydrateAddress(raw: RawDeliveryAddress): AddressData {
+const PreferencesSchema = z
+  .object({
+    dietaryRestrictions: z.array(z.string()).optional(),
+    allergies: z.array(z.string()).optional(),
+    servingSize: z.enum(BOX_SIZES).optional(),
+  })
+  .partial();
+
+function hydrateAddress(raw: unknown): AddressData {
+  const result = AddressSchema.safeParse(raw);
+  const parsed = result.success ? result.data : {};
   return {
-    street: raw?.street ?? DEFAULT_ADDRESS_DATA.street,
-    city: raw?.city ?? DEFAULT_ADDRESS_DATA.city,
-    state: raw?.state ?? DEFAULT_ADDRESS_DATA.state,
-    zipCode: raw?.zipCode ?? DEFAULT_ADDRESS_DATA.zipCode,
-    country: raw?.country ?? DEFAULT_ADDRESS_DATA.country,
-    instructions: raw?.instructions ?? DEFAULT_ADDRESS_DATA.instructions,
+    street: parsed.street ?? DEFAULT_ADDRESS_DATA.street,
+    city: parsed.city ?? DEFAULT_ADDRESS_DATA.city,
+    state: parsed.state ?? DEFAULT_ADDRESS_DATA.state,
+    zipCode: parsed.zipCode ?? DEFAULT_ADDRESS_DATA.zipCode,
+    country: parsed.country ?? DEFAULT_ADDRESS_DATA.country,
+    instructions: parsed.instructions ?? DEFAULT_ADDRESS_DATA.instructions,
   };
 }
 
-function hydratePreferences(raw: RawPreferences): PreferencesData {
+function hydratePreferences(raw: unknown): PreferencesData {
+  const result = PreferencesSchema.safeParse(raw);
+  const parsed = result.success ? result.data : {};
   return {
     dietaryRestrictions:
-      raw?.dietaryRestrictions ?? DEFAULT_PREFERENCES.dietaryRestrictions,
-    allergies: raw?.allergies ?? DEFAULT_PREFERENCES.allergies,
-    servingSize: raw?.servingSize ?? DEFAULT_PREFERENCES.servingSize,
+      parsed.dietaryRestrictions ?? DEFAULT_PREFERENCES.dietaryRestrictions,
+    allergies: parsed.allergies ?? DEFAULT_PREFERENCES.allergies,
+    servingSize: parsed.servingSize ?? DEFAULT_PREFERENCES.servingSize,
   };
 }
 
 function mergeAddress(
-  edits: Partial<AddressData>,
+  edits: AddressEdits,
   hydrated: AddressData
 ): AddressData {
   return {
@@ -145,7 +180,7 @@ function mergeAddress(
 }
 
 function mergePreferences(
-  edits: Partial<PreferencesData>,
+  edits: PreferenceEdits,
   hydrated: PreferencesData
 ): PreferencesData {
   return {
@@ -209,25 +244,24 @@ export default function SettingsPage() {
     email: profile?.email ?? user?.email ?? "",
   };
 
-  // profile?.deliveryAddress is inferred as `null` by tRPC (router always returns null).
-  const hydratedAddressData = hydrateAddress(
-    profile?.deliveryAddress as RawDeliveryAddress
-  );
-  const hydratedPreferences = hydratePreferences(
-    profile?.preferences as RawPreferences
-  );
+  // `deliveryAddress` and `preferences` are JSONB columns that tRPC serializes
+  // as `unknown`-shaped values. We pass them straight into `hydrateAddress`/
+  // `hydratePreferences`, which Zod-validate the payload and fall back to
+  // defaults for any missing or malformed fields.
+  const rawDeliveryAddress: unknown = profile?.deliveryAddress;
+  const rawPreferences: unknown = profile?.preferences;
+  const hydratedAddressData = hydrateAddress(rawDeliveryAddress);
+  const hydratedPreferences = hydratePreferences(rawPreferences);
 
-  const [accountEdits, setAccountEdits] = useState<Partial<AccountFields>>({});
+  const [accountEdits, setAccountEdits] = useState<AccountEdits>({});
   const [passwordData, setPasswordData] = useState<PasswordFields>({
     currentPassword: "",
     newPassword: "",
     confirmPassword: "",
   });
 
-  const [addressEdits, setAddressEdits] = useState<Partial<AddressData>>({});
-  const [preferenceEdits, setPreferenceEdits] = useState<
-    Partial<PreferencesData>
-  >({});
+  const [addressEdits, setAddressEdits] = useState<AddressEdits>({});
+  const [preferenceEdits, setPreferenceEdits] = useState<PreferenceEdits>({});
 
   const formData: FormData = {
     name: accountEdits.name ?? hydratedAccountData.name,

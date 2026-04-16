@@ -8,7 +8,6 @@ import {
   useEffect,
   useState,
 } from "react";
-import { toCanonicalSession, toCanonicalUser } from "@/lib/auth/adapters.ts";
 import type { Session, User } from "@/lib/types/auth.ts";
 
 // Better Auth's sign-in/up results carry more fields than we need (redirect,
@@ -38,6 +37,110 @@ interface AuthContextType {
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
+
+type SessionShape = Pick<
+  Session,
+  | "id"
+  | "expiresAt"
+  | "token"
+  | "createdAt"
+  | "updatedAt"
+  | "userId"
+  | "ipAddress"
+  | "userAgent"
+>;
+type SessionCandidate = {
+  [Key in keyof SessionShape]?: SessionShape[Key] | string | null;
+};
+
+type UserShape = Pick<
+  User,
+  | "id"
+  | "email"
+  | "emailVerified"
+  | "createdAt"
+  | "updatedAt"
+  | "name"
+  | "image"
+  | "role"
+>;
+type UserCandidate = {
+  [Key in keyof UserShape]?: UserShape[Key] | string | null;
+};
+
+function readDate(value: unknown): Date | null {
+  if (value instanceof Date) {
+    return value;
+  }
+  if (typeof value !== "string") {
+    return null;
+  }
+  const date = new Date(value);
+  return Number.isFinite(date.getTime()) ? date : null;
+}
+
+function toCanonicalSession(value: unknown): Session | null {
+  if (typeof value !== "object" || value === null) {
+    return null;
+  }
+  const candidate = value as SessionCandidate;
+  const expiresAt = readDate(candidate.expiresAt);
+  const createdAt = readDate(candidate.createdAt);
+  const updatedAt = readDate(candidate.updatedAt);
+  if (
+    typeof candidate.id !== "string" ||
+    expiresAt === null ||
+    typeof candidate.token !== "string" ||
+    createdAt === null ||
+    updatedAt === null ||
+    typeof candidate.userId !== "string"
+  ) {
+    return null;
+  }
+  return {
+    id: candidate.id,
+    expiresAt,
+    token: candidate.token,
+    createdAt,
+    updatedAt,
+    userId: candidate.userId,
+    ipAddress:
+      typeof candidate.ipAddress === "string" ? candidate.ipAddress : null,
+    userAgent:
+      typeof candidate.userAgent === "string" ? candidate.userAgent : null,
+  };
+}
+
+function toCanonicalUser(value: unknown): User | null {
+  if (typeof value !== "object" || value === null) {
+    return null;
+  }
+  const candidate = value as UserCandidate;
+  const createdAt = readDate(candidate.createdAt);
+  const updatedAt = readDate(candidate.updatedAt);
+  if (
+    typeof candidate.id !== "string" ||
+    typeof candidate.email !== "string" ||
+    typeof candidate.emailVerified !== "boolean" ||
+    createdAt === null ||
+    updatedAt === null
+  ) {
+    return null;
+  }
+  return {
+    id: candidate.id,
+    email: candidate.email,
+    emailVerified: candidate.emailVerified,
+    createdAt,
+    updatedAt,
+    name: typeof candidate.name === "string" ? candidate.name : "",
+    image: typeof candidate.image === "string" ? candidate.image : null,
+    role:
+      candidate.role === "admin" || candidate.role === "super_admin"
+        ? candidate.role
+        : "customer",
+  };
+}
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<User | null>(null);

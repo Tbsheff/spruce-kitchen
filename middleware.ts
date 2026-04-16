@@ -1,6 +1,5 @@
 import type { NextRequest } from "next/server";
 import { NextResponse } from "next/server";
-import { env } from "@/lib/env.ts";
 import { generateCSPHeader } from "@/lib/security/input-validation.ts";
 
 // Define protected and public routes
@@ -20,6 +19,10 @@ const publicRoutes = [
 
 export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
+  const env = {
+    DATABASE_URL: process.env.DATABASE_URL,
+    NODE_ENV: process.env.NODE_ENV,
+  };
 
   // Allow API routes and static files to pass through
   if (

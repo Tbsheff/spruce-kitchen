@@ -193,3 +193,8 @@ export function logPermissionDenied(
     userAgent: userAgent ?? null,
   });
 }
+
+export const SimpleAuditService = {
+  getLogs: getAuditLogs,
+  logSecurityEvent,
+};
