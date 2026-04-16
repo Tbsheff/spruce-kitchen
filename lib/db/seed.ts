@@ -10,9 +10,9 @@
  */
 
 import { resolve } from "node:path";
-import type { BillingType, OrderStatus, PlanType } from "@/lib/types/enums.ts";
 // Load environment variables
 import { config } from "dotenv";
+import type { BillingType, OrderStatus, PlanType } from "@/lib/types/enums.ts";
 
 // Load .env.local file
 config({ path: resolve(process.cwd(), ".env.local") });
@@ -27,9 +27,9 @@ import {
   type NewMealPlan,
   type NewOrder,
   type NewUser,
-  type Role,
   order,
   permission,
+  type Role,
   rateLimitRecord,
   rolePermission,
   session,

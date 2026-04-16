@@ -4,10 +4,7 @@ import type { Role } from "@/lib/db/schema.ts";
 import { isAuditDetails } from "@/lib/identity/core/ports.ts";
 import { sanitizeObject } from "@/lib/security/input-validation.ts";
 import type { AuditDetails } from "@/lib/security/simple-audit.ts";
-import {
-  logAudit,
-  logPermissionDenied,
-} from "@/lib/security/simple-audit.ts";
+import { logAudit, logPermissionDenied } from "@/lib/security/simple-audit.ts";
 import type { Context } from "./server.ts";
 
 const t = initTRPC.context<Context>().create({
@@ -234,4 +231,3 @@ function sanitizeForAudit(value: unknown): AuditDetails {
   }
   return { value: String(value) };
 }
-

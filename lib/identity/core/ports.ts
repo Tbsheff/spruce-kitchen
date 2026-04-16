@@ -17,7 +17,9 @@ export type AuditValue =
   | AuditValue[]
   | { [key: string]: AuditValue };
 
-export type AuditDetails = { [key: string]: AuditValue };
+export interface AuditDetails {
+  [key: string]: AuditValue;
+}
 
 // Runtime guard for AuditDetails. Pragmatic: validates only the top level
 // (plain, non-array object). Nested values are trusted once the outer shape

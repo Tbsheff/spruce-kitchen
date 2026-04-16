@@ -39,16 +39,18 @@ const PositiveInt = z.number().int().positive();
 const NonNegativeInt = z.number().int().nonnegative();
 
 const OnboardingStateSchema = z.object({
-  step: z.number().int().min(0).max(TOTAL_STEPS - 1),
+  step: z
+    .number()
+    .int()
+    .min(0)
+    .max(TOTAL_STEPS - 1),
   goal: z
     .enum(["eat-better", "save-time", "stay-healthy", "exploring"])
     .optional(),
   diet: z.array(z.string()),
   allergens: z.array(z.string()),
   household: z.enum(["solo", "couple", "family", "big-family"]).optional(),
-  cadence: z
-    .enum(["weekly", "bi-weekly", "monthly", "one-time"])
-    .optional(),
+  cadence: z.enum(["weekly", "bi-weekly", "monthly", "one-time"]).optional(),
   selectedMeals: z.record(z.string(), PositiveInt),
   firstDeliveryDate: z.string().optional(),
   paymentComplete: z.boolean(),
@@ -110,14 +112,12 @@ function toOnboardingState(parsed: ParsedOnboardingState): OnboardingState {
     allergens: parsed.allergens as OnboardingState["allergens"],
     selectedMeals: parsed.selectedMeals as OnboardingState["selectedMeals"],
     paymentComplete: parsed.paymentComplete,
-    ...(parsed.goal !== undefined ? { goal: parsed.goal } : {}),
-    ...(parsed.household !== undefined
-      ? { household: parsed.household }
-      : {}),
-    ...(parsed.cadence !== undefined ? { cadence: parsed.cadence } : {}),
-    ...(parsed.firstDeliveryDate !== undefined
-      ? { firstDeliveryDate: parsed.firstDeliveryDate }
-      : {}),
+    ...(parsed.goal === undefined ? {} : { goal: parsed.goal }),
+    ...(parsed.household === undefined ? {} : { household: parsed.household }),
+    ...(parsed.cadence === undefined ? {} : { cadence: parsed.cadence }),
+    ...(parsed.firstDeliveryDate === undefined
+      ? {}
+      : { firstDeliveryDate: parsed.firstDeliveryDate }),
   };
 }
 
@@ -132,9 +132,9 @@ function toCompletedOrderSnapshot(
     id: parsed.id,
     meals: parsed.meals,
     pricing: parsed.pricing,
-    ...(parsed.deliveryFrequency !== undefined
-      ? { deliveryFrequency: parsed.deliveryFrequency }
-      : {}),
+    ...(parsed.deliveryFrequency === undefined
+      ? {}
+      : { deliveryFrequency: parsed.deliveryFrequency }),
   };
 }
 

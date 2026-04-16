@@ -20,10 +20,11 @@ import { toast } from "@/hooks/use-toast.ts";
 import { useAuth } from "@/lib/auth-context.tsx";
 import { trpc } from "@/lib/trpc/client.ts";
 import { useCreateMealPlan } from "@/lib/trpc/hooks.ts";
+import type { BillingType, BoxSize, Cadence } from "@/lib/types/enums.ts";
 
-type Size = "small" | "medium";
-type PurchaseType = "one-time" | "subscription";
-type Frequency = "weekly" | "bi-weekly" | "monthly";
+type Size = Extract<BoxSize, "small" | "medium">;
+type PurchaseType = BillingType;
+type Frequency = Exclude<Cadence, "one-time">;
 
 interface OrderData {
   frequency?: Frequency;
@@ -38,41 +39,6 @@ const steps = [
   "Plan & Type",
   "Review Order",
 ] as const;
-
-/**
- * Exhaustive gate that decides whether the wizard can leave a given step.
- * Separating this out keeps the render tree simple while making the per-step
- * requirements testable and impossible to drift from the switch below.
- */
-function canAdvance(
-  state: OrderData,
-  step: number,
-  totalMeals: number
-): boolean {
-  switch (step) {
-    case 0:
-      return totalMeals === 10;
-    case 1:
-      return state.size !== undefined;
-    case 2:
-      if (state.purchaseType === undefined) {
-        return false;
-      }
-      if (state.purchaseType === "subscription") {
-        return state.frequency !== undefined;
-      }
-      return true;
-    case 3:
-      return (
-        totalMeals === 10 &&
-        state.size !== undefined &&
-        state.purchaseType !== undefined &&
-        (state.purchaseType !== "subscription" || state.frequency !== undefined)
-      );
-    default:
-      return false;
-  }
-}
 
 export default function NewOrderPage() {
   const router = useRouter();

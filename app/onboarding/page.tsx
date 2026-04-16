@@ -19,12 +19,14 @@ import {
 } from "@/lib/storage/onboarding-persistence.ts";
 import { trpc } from "@/lib/trpc/client.ts";
 import { useCreateMealPlan } from "@/lib/trpc/hooks.ts";
+import type { BillingType, BoxSize, Cadence } from "@/lib/types/enums.ts";
 
-type Size = "small" | "medium";
-type PurchaseType = "one-time" | "subscription";
+type Size = Extract<BoxSize, "small" | "medium">;
+type PurchaseType = BillingType;
+type Frequency = Exclude<Cadence, "one-time">;
 
 interface Selections {
-  frequency?: "weekly" | "bi-weekly" | "monthly";
+  frequency?: Frequency;
   meals: Record<string, number>;
   purchaseType?: PurchaseType;
   size?: Size;

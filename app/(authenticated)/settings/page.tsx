@@ -165,10 +165,7 @@ function hydratePreferences(raw: unknown): PreferencesData {
   };
 }
 
-function mergeAddress(
-  edits: AddressEdits,
-  hydrated: AddressData
-): AddressData {
+function mergeAddress(edits: AddressEdits, hydrated: AddressData): AddressData {
   return {
     street: edits.street ?? hydrated.street,
     city: edits.city ?? hydrated.city,

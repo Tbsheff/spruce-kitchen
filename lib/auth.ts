@@ -56,9 +56,9 @@ function resolveOAuthCredentials(
   if ((normalizedId === null) !== (normalizedSecret === null)) {
     throw new Error(
       `${provider} OAuth is misconfigured: ${
-        normalizedId !== null
-          ? `${provider.toUpperCase()}_CLIENT_ID is set but ${provider.toUpperCase()}_CLIENT_SECRET is missing`
-          : `${provider.toUpperCase()}_CLIENT_SECRET is set but ${provider.toUpperCase()}_CLIENT_ID is missing`
+        normalizedId === null
+          ? `${provider.toUpperCase()}_CLIENT_SECRET is set but ${provider.toUpperCase()}_CLIENT_ID is missing`
+          : `${provider.toUpperCase()}_CLIENT_ID is set but ${provider.toUpperCase()}_CLIENT_SECRET is missing`
       }. Set both or neither.`
     );
   }
