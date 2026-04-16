@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32" role="img" aria-label="Spruce Kitchen">
+  <title>Spruce Kitchen</title>
+  <g fill="#3C695C">
+    <rect x="14" y="24" width="4" height="5" rx="0.5"/>
+    <path d="M16 14 L3 26 L29 26 Z"/>
+    <path d="M16 8 L6 19 L26 19 Z"/>
+    <path d="M16 3 L9 12 L23 12 Z"/>
+  </g>
+</svg>
