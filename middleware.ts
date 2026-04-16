@@ -1,21 +1,28 @@
 import type { NextRequest } from "next/server";
 import { NextResponse } from "next/server";
 import {
+  NONCE_HEADER,
   generateCSPHeader,
   generateCSPNonce,
 } from "@/lib/security/input-validation.ts";
 
 /**
- * Applies CSP + security headers to a response and returns it. Nonce is
- * generated once per request by the caller and threaded through so
- * identical values end up on both the request (so Next.js can stamp its
- * inline scripts) and the response (so the browser trusts them).
+ * Builds a NextResponse for the downstream route with the nonce threaded
+ * onto both the forwarded request headers (so server components can read
+ * it via next/headers and Next.js can stamp <script nonce=...>) and the
+ * response's CSP header (so the browser trusts those scripts).
  */
-function applySecurityHeaders(
-  response: NextResponse,
+function buildSecureResponse(
+  request: NextRequest,
   nonce: string,
   isProduction: boolean,
 ): NextResponse {
+  const forwardedHeaders = new Headers(request.headers);
+  forwardedHeaders.set(NONCE_HEADER, nonce);
+  const response = NextResponse.next({
+    request: { headers: forwardedHeaders },
+  });
+
   response.headers.set("Content-Security-Policy", generateCSPHeader(nonce));
   response.headers.set("X-Frame-Options", "DENY");
   response.headers.set("X-Content-Type-Options", "nosniff");
@@ -34,14 +41,6 @@ function applySecurityHeaders(
   }
 
   return response;
-}
-
-function nextWithNonce(request: NextRequest, nonce: string): NextResponse {
-  // Propagate the nonce on the request headers so server components and
-  // Next.js itself can read it via next/headers and stamp <script nonce=...>.
-  const forwardedHeaders = new Headers(request.headers);
-  forwardedHeaders.set("x-nonce", nonce);
-  return NextResponse.next({ request: { headers: forwardedHeaders } });
 }
 
 // Define protected and public routes
@@ -110,11 +109,7 @@ export async function middleware(request: NextRequest) {
 
     // Public routes can still work without database
     if (isPublicRoute) {
-      return applySecurityHeaders(
-        nextWithNonce(request, nonce),
-        nonce,
-        isProduction,
-      );
+      return buildSecureResponse(request, nonce, isProduction);
     }
 
     // Default to blocking access with generic error message
@@ -148,11 +143,7 @@ export async function middleware(request: NextRequest) {
       return NextResponse.redirect(loginUrl);
     }
 
-    return applySecurityHeaders(
-      nextWithNonce(request, nonce),
-      nonce,
-      isProduction,
-    );
+    return buildSecureResponse(request, nonce, isProduction);
   } catch (error) {
     console.error("Middleware auth check failed:", error);
 
@@ -163,11 +154,7 @@ export async function middleware(request: NextRequest) {
       return NextResponse.redirect(loginUrl);
     }
 
-    return applySecurityHeaders(
-      nextWithNonce(request, nonce),
-      nonce,
-      isProduction,
-    );
+    return buildSecureResponse(request, nonce, isProduction);
   }
 }
 

@@ -21,7 +21,7 @@ export const Header = () => {
     const handleScroll = () => {
       setIsScrolled(window.scrollY > 50)
     }
-    window.addEventListener("scroll", handleScroll)
+    window.addEventListener("scroll", handleScroll, { passive: true })
     return () => window.removeEventListener("scroll", handleScroll)
   }, [])
 
@@ -35,12 +35,10 @@ export const Header = () => {
           )}
         >
           <div className="flex items-center justify-between py-3">
-            {/* Logo */}
             <Link href="/" aria-label="Homepage" className="shrink-0">
               <Logo size="lg" />
             </Link>
 
-            {/* Desktop nav — centered via flex-1 + justify-center */}
             <div className="hidden flex-1 justify-center lg:flex">
               <ul className="flex items-center gap-6 text-sm">
                 {menuItems.map((item) => (
@@ -56,7 +54,6 @@ export const Header = () => {
               </ul>
             </div>
 
-            {/* Desktop actions */}
             <div className="hidden shrink-0 items-center gap-2 lg:flex">
               <Button asChild variant="ghost" size="sm">
                 <Link href="/login">Login</Link>
@@ -66,7 +63,6 @@ export const Header = () => {
               </Button>
             </div>
 
-            {/* Mobile hamburger */}
             <button
               onClick={() => setMenuState(!menuState)}
               aria-label={menuState ? "Close Menu" : "Open Menu"}
@@ -77,7 +73,6 @@ export const Header = () => {
             </button>
           </div>
 
-          {/* Mobile menu panel */}
           <div
             className={cn(
               "overflow-hidden transition-all duration-300 lg:hidden",

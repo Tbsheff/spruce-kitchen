@@ -237,57 +237,50 @@ export const inputSanitizationMiddleware = <
 /**
  * Content Security Policy — nonce-based with 'strict-dynamic'.
  *
- * In production: script-src uses 'strict-dynamic' + per-request nonce. No
- * 'unsafe-inline', no 'unsafe-eval'. Any script loaded by a nonced script
- * inherits trust; everything else is blocked.
+ * Production: script-src = 'self' + nonce + 'strict-dynamic'. No
+ * 'unsafe-inline', no 'unsafe-eval'. Scripts loaded by a nonced script
+ * inherit trust transitively.
  *
- * In development: adds 'unsafe-eval' because Next.js HMR / Turbopack
- * requires it to evaluate rebuilt modules. Also relaxes connect-src for
- * the HMR websocket.
+ * Development: adds 'unsafe-eval' (Turbopack/HMR evaluates rebuilt
+ * modules via Function constructor) and ws:/wss: on connect-src (HMR
+ * websocket). style-src keeps 'unsafe-inline' — Tailwind and the
+ * Next.js font loader inject <style> tags that can't be nonced without
+ * forking the framework; the XSS surface is limited because style
+ * injection can't execute JS.
  */
 
-export function generateCSPHeader(nonce: string): string {
-  const isDev = process.env.NODE_ENV !== "production";
+export const NONCE_HEADER = "x-nonce";
 
-  const scriptSrc = [
-    "'self'",
-    `'nonce-${nonce}'`,
-    "'strict-dynamic'",
-    "'wasm-unsafe-eval'",
-    ...(isDev ? ["'unsafe-eval'"] : []),
-  ];
+function buildCSPSegments(isDev: boolean): { prefix: string; suffix: string } {
+  const scriptTail = isDev
+    ? "'strict-dynamic' 'wasm-unsafe-eval' 'unsafe-eval'"
+    : "'strict-dynamic' 'wasm-unsafe-eval'";
+  const connect = isDev ? "'self' ws: wss:" : "'self'";
 
-  // Tailwind + Next.js font loader inject <style> with inline content that
-  // can't easily be nonced yet, so style-src keeps 'unsafe-inline'. This is
-  // the standard Next.js trade-off; style-src injections have no JS-exec
-  // impact so the XSS surface is narrow.
-  const styleSrc = ["'self'", "'unsafe-inline'"];
-
-  const connectSrc = ["'self'", ...(isDev ? ["ws:", "wss:"] : [])];
-
-  const directives: Record<string, string[]> = {
-    "default-src": ["'self'"],
-    "script-src": scriptSrc,
-    "style-src": styleSrc,
-    "img-src": ["'self'", "data:", "blob:", "https:"],
-    "font-src": ["'self'", "data:"],
-    "connect-src": connectSrc,
-    "frame-src": ["'none'"],
-    "object-src": ["'none'"],
-    "base-uri": ["'self'"],
-    "form-action": ["'self'"],
-    "frame-ancestors": ["'none'"],
+  return {
+    prefix: `default-src 'self'; script-src 'self' 'nonce-`,
+    suffix:
+      `' ${scriptTail}; ` +
+      `style-src 'self' 'unsafe-inline'; ` +
+      `img-src 'self' data: blob: https:; ` +
+      `font-src 'self' data:; ` +
+      `connect-src ${connect}; ` +
+      `frame-src 'none'; ` +
+      `object-src 'none'; ` +
+      `base-uri 'self'; ` +
+      `form-action 'self'; ` +
+      `frame-ancestors 'none'`,
   };
+}
 
-  return Object.entries(directives)
-    .map(([directive, sources]) => `${directive} ${sources.join(" ")}`)
-    .join("; ");
+const CSP_SEGMENTS = buildCSPSegments(process.env.NODE_ENV !== "production");
+
+export function generateCSPHeader(nonce: string): string {
+  return CSP_SEGMENTS.prefix + nonce + CSP_SEGMENTS.suffix;
 }
 
 export function generateCSPNonce(): string {
-  // Web Crypto is available in Node 20+ and the Next.js edge runtime.
   const bytes = new Uint8Array(16);
   crypto.getRandomValues(bytes);
-  // Base64 without padding — shorter and valid inside the nonce attribute.
   return btoa(String.fromCharCode(...bytes)).replace(/=+$/, "");
 }
