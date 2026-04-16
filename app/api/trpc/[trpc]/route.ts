@@ -11,8 +11,9 @@ const handler = (req: NextRequest) =>
     createContext: (opts) => createTRPCContext(opts),
     // Only attach onError in development; under exactOptionalPropertyTypes we
     // can't pass an explicit `undefined` to an optional field — spread instead.
+    // Let TypeScript infer the callback param type from the handler's signature.
     ...(process.env.NODE_ENV === "development" && {
-      onError: ({ path, error }: { path?: string; error: { message: string } }) => {
+      onError({ path, error }) {
         console.error(
           `❌ tRPC failed on ${path ?? "<no-path>"}: ${error.message}`
         );
