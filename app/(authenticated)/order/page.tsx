@@ -44,7 +44,7 @@ const steps = [
  * Separating this out keeps the render tree simple while making the per-step
  * requirements testable and impossible to drift from the switch below.
  */
-export function canAdvance(
+function canAdvance(
   state: OrderData,
   step: number,
   totalMeals: number
@@ -183,33 +183,49 @@ export default function NewOrderPage() {
     }
   };
 
-  const next = async () => {
-    if (step === 0 && totalMeals !== 10) {
+  const validateStep0 = () => {
+    if (totalMeals !== 10) {
       toast({
         title: "Please select exactly 10 meals",
         description: `You need ${remaining > 0 ? `${remaining} more` : `${Math.abs(remaining)} fewer`} meals.`,
       });
-      return;
+      return false;
     }
-    if (step === 1 && !data.size) {
+    return true;
+  };
+
+  const validateStep1 = () => {
+    if (!data.size) {
       toast({ title: "Please choose a box size" });
+      return false;
+    }
+    return true;
+  };
+
+  const validateStep2 = () => {
+    if (!data.purchaseType) {
+      toast({ title: "Please choose a purchase type" });
+      return false;
+    }
+    if (data.purchaseType === "subscription" && !data.frequency) {
+      toast({ title: "Please choose a delivery schedule" });
+      return false;
+    }
+    return true;
+  };
+
+  const next = async () => {
+    if (step === 0 && !validateStep0()) {
       return;
     }
-    if (step === 2) {
-      if (!data.purchaseType) {
-        toast({ title: "Please choose a purchase type" });
-        return;
-      }
-      if (data.purchaseType === "subscription" && !data.frequency) {
-        toast({ title: "Please choose a delivery schedule" });
-        return;
-      }
+    if (step === 1 && !validateStep1()) {
+      return;
+    }
+    if (step === 2 && !validateStep2()) {
+      return;
     }
     if (step === 3) {
-      const success = await createOrder();
-      if (!success) {
-        return;
-      }
+      await createOrder();
       return;
     }
     setStep((s) => s + 1);
