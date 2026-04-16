@@ -364,6 +364,12 @@ export const mealPlanRouter = createTRPCRouter({
         "@/lib/pricing.ts"
       );
       const planRecord = mealPlan[0];
+      if (!planRecord) {
+        throw new TRPCError({
+          code: "NOT_FOUND",
+          message: "Meal plan not found",
+        });
+      }
       if (!isBoxSize(planRecord.planType)) {
         throw new TRPCError({
           code: "INTERNAL_SERVER_ERROR",

@@ -20,6 +20,18 @@ export interface ParallaxStepsProps {
   readonly title?: string;
 }
 
+function getCircleClass(index: number, currentStep: number): string {
+  if (index === currentStep) {
+    return "border-orange-600 bg-orange-600 text-white shadow-lg shadow-orange-600/25";
+  }
+
+  if (index < currentStep) {
+    return "border-orange-300 bg-orange-100 text-orange-600";
+  }
+
+  return "border-muted-foreground/30 bg-muted text-muted-foreground";
+}
+
 export function ParallaxSteps({
   steps,
   className,
@@ -182,12 +194,7 @@ export function ParallaxSteps({
             {/* Steps List */}
             <div className="space-y-8">
               {steps.map((step, index) => {
-                const circleClass =
-                  index === currentStep
-                    ? "border-orange-600 bg-orange-600 text-white shadow-lg shadow-orange-600/25"
-                    : index < currentStep
-                      ? "border-orange-300 bg-orange-100 text-orange-600"
-                      : "border-muted-foreground/30 bg-muted text-muted-foreground";
+                const circleClass = getCircleClass(index, currentStep);
                 return (
                   <motion.div
                     animate={{
@@ -263,10 +270,10 @@ export function ParallaxSteps({
                     transition={{ duration: 0.6, ease: "easeInOut" }}
                   >
                     <Image
-                      alt={steps[currentStep].title}
+                      alt={steps[currentStep]?.title ?? ""}
                       className="object-cover"
                       fill
-                      src={steps[currentStep].image || "/placeholder.svg"}
+                      src={steps[currentStep]?.image || "/placeholder.svg"}
                     />
                     <div className="absolute inset-0 bg-gradient-to-t from-black/20 via-transparent to-transparent" />
 

@@ -15,9 +15,7 @@ import { Header } from "@/components/ui/header.tsx";
 
 type BillingType = "subscription" | "one-time";
 
-function getBillingType(
-  value: string | string[] | undefined
-): BillingType {
+function getBillingType(value: string | string[] | undefined): BillingType {
   return value === "one-time" ? "one-time" : "subscription";
 }
 

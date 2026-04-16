@@ -198,7 +198,7 @@ export class PasswordPolicyValidator {
 
     if (userInfo.email) {
       const emailParts = userInfo.email.toLowerCase().split("@")[0];
-      if (emailParts.length >= 3 && lowercasePassword.includes(emailParts)) {
+      if (emailParts && emailParts.length >= 3 && lowercasePassword.includes(emailParts)) {
         return true;
       }
     }

@@ -197,9 +197,14 @@ export const createOwnershipProcedure = (_resourceUserIdField = "userId") => {
 
 export const ownershipProcedure = createOwnershipProcedure();
 
-export const userResourceProcedure = t.procedure
-  .use(protectedProcedure._def.middlewares[0])
-  .use(createOwnershipProcedure()._def.middlewares[0]);
+const protectedMw = protectedProcedure._def.middlewares[0];
+const ownershipMw = createOwnershipProcedure()._def.middlewares[0];
+if (!protectedMw || !ownershipMw) {
+  throw new Error(
+    "userResourceProcedure: expected middlewares to be defined on tRPC procedure internals"
+  );
+}
+export const userResourceProcedure = t.procedure.use(protectedMw).use(ownershipMw);
 
 export const auditedProcedure = (action: string, resource: string) => {
   return protectedProcedure.use(async ({ ctx, next, input }) => {

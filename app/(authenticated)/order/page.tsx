@@ -125,6 +125,10 @@ export default function NewOrderPage() {
         deliveryFrequency: data.frequency,
       });
 
+      if (result === undefined) {
+        throw new Error("Meal plan creation returned no result");
+      }
+
       console.log("Order created:", result);
 
       toast({

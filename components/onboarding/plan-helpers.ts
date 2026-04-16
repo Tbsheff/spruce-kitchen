@@ -79,12 +79,7 @@ export const HOUSEHOLD_ID_SET: ReadonlySet<HouseholdSize> = new Set(
   HOUSEHOLDS.map((h) => h.id)
 );
 
-export const CADENCES: readonly {
-  readonly id: Cadence;
-  readonly title: string;
-  readonly subtitle: string;
-  readonly isSubscription: boolean;
-}[] = [
+export const CADENCES = [
   {
     id: "weekly",
     title: "Weekly",
@@ -109,18 +104,20 @@ export const CADENCES: readonly {
     subtitle: "No commitment — one box only",
     isSubscription: false,
   },
-] as const;
+] as const satisfies readonly {
+  readonly id: Cadence;
+  readonly title: string;
+  readonly subtitle: string;
+  readonly isSubscription: boolean;
+}[];
 
 export const CADENCE_ID_SET: ReadonlySet<Cadence> = new Set(
   CADENCES.map((c) => c.id)
 );
 
-const CADENCE_BY_ID: Record<Cadence, (typeof CADENCES)[number]> = {
-  weekly: CADENCES[0],
-  "bi-weekly": CADENCES[1],
-  monthly: CADENCES[2],
-  "one-time": CADENCES[3],
-};
+const CADENCE_BY_ID = Object.fromEntries(
+  CADENCES.map((c) => [c.id, c] as const)
+) as Record<Cadence, (typeof CADENCES)[number]>;
 
 export function householdToBoxSize(h: HouseholdSize): BoxSize {
   return h === "solo" || h === "couple" ? "small" : "medium";
@@ -290,6 +287,9 @@ export function computeChefsPicks(
   const result: Record<MealId, number> = {} as Record<MealId, number>;
   for (let index = 0; index < targetCount; index += 1) {
     const meal = sorted[index % sorted.length];
+    if (meal === undefined) {
+      continue;
+    }
     result[meal.id] = (result[meal.id] || 0) + 1;
   }
   return result as SelectedMeals;

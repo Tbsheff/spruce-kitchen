@@ -13,7 +13,7 @@
     "db:studio": "drizzle-kit studio",
     "dev": "next dev",
     "typecheck": "tsc --noEmit --pretty false",
-    "lint": "tsc --noEmit --pretty false",
+    "lint": "ultracite check",
     "start": "next start",
     "check": "ultracite check",
     "fix": "ultracite fix"

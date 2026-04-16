@@ -136,6 +136,9 @@ export async function checkRateLimit(
     }
 
     const record = existing[0];
+    if (!record) {
+      throw new Error("rate-limit: record unexpectedly missing after length check");
+    }
 
     // Check if we're still within the same window
     const isWithinWindow =
@@ -261,6 +264,9 @@ export async function getRateLimitStatus(
     }
 
     const record = existing[0];
+    if (!record) {
+      throw new Error("rate-limit: record unexpectedly missing after length check");
+    }
     const isWithinWindow =
       record.windowStart.getTime() >= windowStart.getTime();
 
@@ -347,7 +353,7 @@ export function getIdentifier(ctx: {
 
   // Extract IP address from request headers (Web Fetch Request)
   const forwarded = ctx.req?.headers?.get?.("x-forwarded-for");
-  const ip = forwarded ? forwarded.split(",")[0].trim() : undefined;
+  const ip = forwarded ? (forwarded.split(",")[0]?.trim() ?? undefined) : undefined;
 
   return `ip:${ip || "unknown"}`;
 }

@@ -72,7 +72,7 @@ export default function HowItWorksPage() {
                   className="rounded-2xl border border-border/60 bg-card p-8"
                   key={step.id}
                 >
-                  <div className="font-semibold text-accent text-sm tracking-[0.3em] uppercase">
+                  <div className="font-semibold text-accent text-sm uppercase tracking-[0.3em]">
                     {step.id}
                   </div>
                   <h2 className="mt-4 font-semibold text-2xl text-foreground">
@@ -101,7 +101,10 @@ export default function HowItWorksPage() {
 
             <div className="grid gap-8 md:grid-cols-2">
               {heatingMethods.map((method) => (
-                <div className="rounded-xl border bg-background p-6" key={method.title}>
+                <div
+                  className="rounded-xl border bg-background p-6"
+                  key={method.title}
+                >
                   <div className="mb-4 flex items-center gap-4">
                     <div className="flex h-12 w-12 items-center justify-center rounded-full bg-orange-100 dark:bg-orange-900/20">
                       <method.icon className="h-6 w-6 text-orange-600 dark:text-orange-400" />
@@ -132,7 +135,11 @@ export default function HowItWorksPage() {
               routine with Spruce Kitchen Meals.
             </p>
             <div className="flex flex-col justify-center gap-4 sm:flex-row">
-              <Button asChild className="bg-primary hover:bg-primary/90" size="lg">
+              <Button
+                asChild
+                className="bg-primary hover:bg-primary/90"
+                size="lg"
+              >
                 <Link href="/menu">View Weekly Menu</Link>
               </Button>
               <Button asChild size="lg" variant="outline">

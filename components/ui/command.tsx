@@ -142,7 +142,6 @@ CommandShortcut.displayName = "CommandShortcut";
 
 export type CommandDialogProps = DialogProps;
 
-export type { DialogProps };
 export {
   Command,
   CommandDialog,

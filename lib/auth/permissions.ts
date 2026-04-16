@@ -108,7 +108,7 @@ export function isResourcePermission(permission: Permission): boolean {
  */
 export function getPermissionResource(permission: Permission): string | null {
   const parts = permission.split(":");
-  return parts.length >= 2 ? parts[0] : null;
+  return parts.length >= 2 ? (parts[0] ?? null) : null;
 }
 
 /**
@@ -116,7 +116,7 @@ export function getPermissionResource(permission: Permission): string | null {
  */
 export function getPermissionAction(permission: Permission): string | null {
   const parts = permission.split(":");
-  return parts.length >= 2 ? parts[1] : null;
+  return parts.length >= 2 ? (parts[1] ?? null) : null;
 }
 
 /**

@@ -21,9 +21,7 @@ type Frequency = "weekly" | "bi-weekly" | "monthly";
 type PurchaseType = "one-time" | "subscription";
 
 function isFrequency(value: string): value is Frequency {
-  return (
-    value === "weekly" || value === "bi-weekly" || value === "monthly"
-  );
+  return value === "weekly" || value === "bi-weekly" || value === "monthly";
 }
 
 function isPurchaseType(value: string): value is PurchaseType {
@@ -105,7 +103,7 @@ export function DeliveryPlan({
                     onFrequencyChange(v);
                   }
                 }}
-                {...(frequency !== undefined ? { value: frequency } : {})}
+                {...(frequency === undefined ? {} : { value: frequency })}
               >
                 <SelectTrigger className="w-full">
                   <SelectValue placeholder="Choose delivery frequency" />

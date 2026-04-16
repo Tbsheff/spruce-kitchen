@@ -172,6 +172,10 @@ function OnboardingContent() {
         selectedMeals: data.meals,
       });
 
+      if (result === undefined) {
+        throw new Error("Meal plan creation returned no result");
+      }
+
       const completedAt = Date.now();
       const pricing = calculateOrderTotal(data.size, data.purchaseType);
       const mealLookup = new Map(
