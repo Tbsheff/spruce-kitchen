@@ -1,18 +1,30 @@
-import { betterAuth } from "better-auth"
+import { betterAuth } from "better-auth";
 
-import { Resend } from "resend"
+import { Resend } from "resend";
 
-let resend: any = null
+if (!process.env.DATABASE_URL) {
+  throw new Error(
+    "DATABASE_URL is required for authentication — Better Auth cannot initialize without it"
+  );
+}
+
+let resend: Resend | null = null;
 if (process.env.RESEND_API_KEY) {
-  resend = new Resend(process.env.RESEND_API_KEY)
+  resend = new Resend(process.env.RESEND_API_KEY);
+}
+
+interface AuthEmailUser {
+  email: string;
+  name?: string | null;
 }
 
 export const auth = betterAuth({
-  // Database configuration
-  database: process.env.DATABASE_URL ? {
+  // Database configuration — DATABASE_URL is guaranteed non-null by the
+  // early throw above, so we wire the adapter unconditionally.
+  database: {
     provider: "postgres",
     url: process.env.DATABASE_URL,
-  } : undefined,
+  },
 
   // Session configuration
   session: {
@@ -27,9 +39,15 @@ export const auth = betterAuth({
   // Email and password authentication
   emailAndPassword: {
     enabled: true,
-    requireEmailVerification: process.env.RESEND_API_KEY ? true : false,
+    requireEmailVerification: !!process.env.RESEND_API_KEY,
     ...(resend && {
-      sendResetPassword: async ({ user, url }: { user: any; url: string }) => {
+      sendResetPassword: async ({
+        user,
+        url,
+      }: {
+        user: AuthEmailUser;
+        url: string;
+      }) => {
         await resend.emails.send({
           from: "Spruce Kitchen <noreply@sprucekitchen.com>",
           to: user.email,
@@ -46,9 +64,15 @@ export const auth = betterAuth({
               <p>Best regards,<br>The Spruce Kitchen Team</p>
             </div>
           `,
-        })
+        });
       },
-      sendVerificationEmail: async ({ user, url }: { user: any; url: string }) => {
+      sendVerificationEmail: async ({
+        user,
+        url,
+      }: {
+        user: AuthEmailUser;
+        url: string;
+      }) => {
         await resend.emails.send({
           from: "Spruce Kitchen <noreply@sprucekitchen.com>",
           to: user.email,
@@ -63,7 +87,7 @@ export const auth = betterAuth({
               <p>Best regards,<br>The Spruce Kitchen Team</p>
             </div>
           `,
-        })
+        });
       },
     }),
   },
@@ -94,7 +118,8 @@ export const auth = betterAuth({
   advanced: {
     generateId: () => crypto.randomUUID(),
   },
-})
+});
 
-export type Session = typeof auth.$Infer.Session
-export type User = typeof auth.$Infer.Session.user
+// Re-export the canonical types so callers importing from @/lib/auth keep
+// working. Source of truth is the Drizzle schema via lib/types/auth.ts.
+export type { Session, User } from "@/lib/types/auth.ts";

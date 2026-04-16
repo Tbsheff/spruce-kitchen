@@ -1,6 +1,6 @@
 /**
  * Simplified Audit Logging Service
- * 
+ *
  * Provides structured audit logging focused on:
  * - Clear event tracking
  * - User action logging
@@ -8,28 +8,42 @@
  * - Performance-optimized async logging
  */
 
-import { db } from "@/lib/db"
-import { auditLog } from "@/lib/db/schema"
-import { eq, desc, and } from "drizzle-orm"
-import type { AuditLog } from "@/lib/db/schema"
+import { and, desc, eq, type SQL } from "drizzle-orm";
+import { db } from "@/lib/db/index.ts";
+import type { AuditLog } from "@/lib/db/schema.ts";
+import { auditLog } from "@/lib/db/schema.ts";
 
-interface AuditLogData {
-  userId?: string
-  action: string
-  resource: string
-  resourceId?: string
-  details?: Record<string, any>
-  ipAddress?: string
-  userAgent?: string
+// undefined is permitted because JSON.stringify drops undefined-valued keys
+// at serialization time; this avoids forcing every caller to `?? null` when
+// passing through a Zod-parsed input object with optional fields.
+export type AuditDetailValue =
+  | string
+  | number
+  | boolean
+  | null
+  | undefined
+  | AuditDetailValue[]
+  | { [key: string]: AuditDetailValue };
+
+export type AuditDetails = Record<string, AuditDetailValue>;
+
+export interface AuditLogData {
+  action: string;
+  details: AuditDetails | null;
+  ipAddress: string | null;
+  resource: string;
+  resourceId: string | null;
+  userAgent: string | null;
+  userId: string | null;
 }
 
 export class SimpleAuditService {
   /**
    * Log an audit event (async to avoid blocking)
    */
-  static async log(data: AuditLogData): Promise<string> {
-    const logId = crypto.randomUUID()
-    const timestamp = new Date()
+  static log(data: AuditLogData): Promise<string> {
+    const logId = crypto.randomUUID();
+    const timestamp = new Date();
 
     if (!process.env.DATABASE_URL) {
       // In development, just log to console
@@ -37,35 +51,37 @@ export class SimpleAuditService {
         id: logId,
         timestamp: timestamp.toISOString(),
         ...data,
-      })
-      return logId
+      });
+      return Promise.resolve(logId);
     }
 
     // Use setImmediate to make logging truly async and non-blocking
     setImmediate(async () => {
       try {
-        await db().insert(auditLog).values({
-          id: logId,
-          userId: data.userId || null,
-          action: data.action,
-          resource: data.resource,
-          resourceId: data.resourceId || null,
-          details: data.details || null,
-          ipAddress: data.ipAddress || null,
-          userAgent: data.userAgent || null,
-          createdAt: timestamp,
-          // Simplified: just use a basic content indicator instead of cryptographic hash
-          contentHash: `${data.action}:${data.resource}:${timestamp.getTime()}`,
-          previousHash: null, // Remove complex hash chaining
-          signature: null,
-        })
+        await db()
+          .insert(auditLog)
+          .values({
+            id: logId,
+            userId: data.userId,
+            action: data.action,
+            resource: data.resource,
+            resourceId: data.resourceId,
+            details: data.details,
+            ipAddress: data.ipAddress,
+            userAgent: data.userAgent,
+            createdAt: timestamp,
+            // Simplified: just use a basic content indicator instead of cryptographic hash
+            contentHash: `${data.action}:${data.resource}:${timestamp.getTime()}`,
+            previousHash: null, // Remove complex hash chaining
+            signature: null,
+          });
       } catch (error) {
-        console.error("Audit logging failed (non-blocking):", error)
+        console.error("Audit logging failed (non-blocking):", error);
         // Don't throw - audit logging should never break the main operation
       }
-    })
+    });
 
-    return logId
+    return Promise.resolve(logId);
   }
 
   /**
@@ -74,22 +90,22 @@ export class SimpleAuditService {
   static async getLogs(
     userId?: string,
     resource?: string,
-    limit: number = 50,
-    offset: number = 0
+    limit = 50,
+    offset = 0
   ): Promise<AuditLog[]> {
     if (!process.env.DATABASE_URL) {
-      return []
+      return [];
     }
 
     try {
-      const dbInstance = db()
-      
-      let whereConditions = []
+      const dbInstance = db();
+
+      const whereConditions: SQL[] = [];
       if (userId) {
-        whereConditions.push(eq(auditLog.userId, userId))
+        whereConditions.push(eq(auditLog.userId, userId));
       }
       if (resource) {
-        whereConditions.push(eq(auditLog.resource, resource))
+        whereConditions.push(eq(auditLog.resource, resource));
       }
 
       const logs = await dbInstance
@@ -98,54 +114,59 @@ export class SimpleAuditService {
         .where(whereConditions.length > 0 ? and(...whereConditions) : undefined)
         .orderBy(desc(auditLog.createdAt))
         .limit(limit)
-        .offset(offset)
+        .offset(offset);
 
-      return logs
+      return logs;
     } catch (error) {
-      console.error('Failed to fetch audit logs:', error)
-      return []
+      console.error("Failed to fetch audit logs:", error);
+      return [];
     }
   }
 
   /**
    * Convenience methods with the same interface as before (for backward compatibility)
    */
-  static async logAuth(
+  static logAuth(
     action: "login" | "logout" | "login_failed" | "signup",
     userId?: string,
-    details?: Record<string, any>,
+    details?: AuditDetails,
     ipAddress?: string,
     userAgent?: string
   ): Promise<string> {
-    return this.log({
-      userId,
+    return SimpleAuditService.log({
+      userId: userId ?? null,
       action: `auth:${action}`,
       resource: "user",
-      resourceId: userId,
-      details,
-      ipAddress,
-      userAgent,
-    })
+      resourceId: userId ?? null,
+      details: details ?? null,
+      ipAddress: ipAddress ?? null,
+      userAgent: userAgent ?? null,
+    });
   }
 
-  static async logSecurityEvent(
-    event: "suspicious_activity" | "rate_limit_exceeded" | "invalid_token" | "brute_force",
+  static logSecurityEvent(
+    event:
+      | "suspicious_activity"
+      | "rate_limit_exceeded"
+      | "invalid_token"
+      | "brute_force",
     userId?: string,
-    details?: Record<string, any>,
+    details?: AuditDetails,
     ipAddress?: string,
     userAgent?: string
   ): Promise<string> {
-    return this.log({
-      userId,
+    return SimpleAuditService.log({
+      userId: userId ?? null,
       action: `security:${event}`,
       resource: "system",
-      details,
-      ipAddress,
-      userAgent,
-    })
+      resourceId: null,
+      details: details ?? null,
+      ipAddress: ipAddress ?? null,
+      userAgent: userAgent ?? null,
+    });
   }
 
-  static async logPermissionDenied(
+  static logPermissionDenied(
     userId: string,
     action: string,
     resource: string,
@@ -154,22 +175,22 @@ export class SimpleAuditService {
     ipAddress?: string,
     userAgent?: string
   ): Promise<string> {
-    return this.log({
+    return SimpleAuditService.log({
       userId,
       action: "permission:denied",
       resource,
-      resourceId,
+      resourceId: resourceId ?? null,
       details: {
         attempted_action: action,
-        required_permission: requiredPermission,
+        required_permission: requiredPermission ?? null,
       },
-      ipAddress,
-      userAgent,
-    })
+      ipAddress: ipAddress ?? null,
+      userAgent: userAgent ?? null,
+    });
   }
 }
 
 // Backward compatibility exports
-export const logAuth = SimpleAuditService.logAuth
-export const logSecurityEvent = SimpleAuditService.logSecurityEvent
-export const logPermissionDenied = SimpleAuditService.logPermissionDenied
+export const logAuth = SimpleAuditService.logAuth;
+export const logSecurityEvent = SimpleAuditService.logSecurityEvent;
+export const logPermissionDenied = SimpleAuditService.logPermissionDenied;

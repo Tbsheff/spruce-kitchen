@@ -11,8 +11,8 @@ import { useEffect, useMemo, useState } from "react";
 import type {
   CurrentUserState,
   SerializedCurrentUserState,
-} from "./core/domain";
-import { hydrateCurrentUser } from "./core/domain";
+} from "./core/domain.ts";
+import { hydrateCurrentUser } from "./core/domain.ts";
 
 type Fetched =
   | { kind: "loading" }
@@ -22,7 +22,7 @@ type Fetched =
 // Single in-flight fetch shared across all hook consumers on the page.
 let inflight: Promise<SerializedCurrentUserState> | null = null;
 
-async function fetchIdentity(): Promise<SerializedCurrentUserState> {
+function fetchIdentity(): Promise<SerializedCurrentUserState> {
   if (inflight) {
     return inflight;
   }

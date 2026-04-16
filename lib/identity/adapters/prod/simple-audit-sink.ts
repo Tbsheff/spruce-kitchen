@@ -10,7 +10,7 @@ export function SimpleAuditSink(): AuditSink {
     emit(event: AuditEvent) {
       // SimpleAuditService.log is fire-and-forget internally (setImmediate).
       // We intentionally do not await — the AuditSink contract is sync emit.
-      void SimpleAuditService.log({
+      SimpleAuditService.log({
         userId: event.userId ?? null,
         action: event.action,
         resource: event.resource,
@@ -18,6 +18,8 @@ export function SimpleAuditSink(): AuditSink {
         details: (event.details as AuditDetails | undefined) ?? null,
         ipAddress: event.ipAddress ?? null,
         userAgent: event.userAgent ?? null,
+      }).catch((err) => {
+        console.error("audit log failed:", err);
       });
     },
   };

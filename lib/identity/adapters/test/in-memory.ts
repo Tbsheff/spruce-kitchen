@@ -18,8 +18,8 @@ export function InMemoryIdentityProvider(opts: {
   session: RawSession | null;
 }): IdentityProvider {
   return {
-    async getSession() {
-      return opts.session;
+    getSession() {
+      return Promise.resolve(opts.session);
     },
   };
 }
@@ -28,9 +28,9 @@ export function StaticAuthorizationStore(
   seed: Partial<Record<Role, readonly string[]>>
 ): AuthorizationStore {
   return {
-    async getAuthorizationForRole(role: Role): Promise<RoleAuthorization> {
+    getAuthorizationForRole(role: Role): Promise<RoleAuthorization> {
       const list = seed[role] ?? [];
-      return { role, permissions: new Set(list) };
+      return Promise.resolve({ role, permissions: new Set(list) });
     },
   };
 }

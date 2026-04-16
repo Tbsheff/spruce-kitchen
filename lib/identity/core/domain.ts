@@ -121,13 +121,13 @@ export async function resolveCurrentUser(
 // isSuperAdmin) that cannot be serialized — serialize to a plain shape,
 // hydrate back to a functional CurrentUser on the receiving side.
 
-export type SerializedCurrentUser = {
-  id: string;
+export interface SerializedCurrentUser {
   email: string;
+  id: string;
   name: string | null;
-  role: Role;
   permissions: readonly Permission[];
-};
+  role: Role;
+}
 
 export type SerializedCurrentUserState =
   | { status: "anonymous" }

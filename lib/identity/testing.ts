@@ -19,6 +19,7 @@ export type {
   FakeClockHandle,
   RecordingAuditSink as RecordingAuditSinkType,
 } from "./adapters/test/in-memory.ts";
+// biome-ignore lint/performance/noBarrelFile: intentional facade for the identity test-only entry point
 export {
   FakeClock,
   fixedRequestMetadata,

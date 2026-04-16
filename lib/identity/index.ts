@@ -8,6 +8,7 @@ export type {
   CurrentUser,
   CurrentUserState,
 } from "./core/domain.ts";
+// biome-ignore lint/performance/noBarrelFile: intentional facade for the identity module boundary
 export { canPermission, resolveCurrentUser } from "./core/domain.ts";
 export type {
   AuditEvent,
