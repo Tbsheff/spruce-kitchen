@@ -1,94 +1,110 @@
-"use client"
+"use client";
 
-import { Button } from "@/components/ui/button"
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
-import { Badge } from "@/components/ui/badge"
+import { Badge } from "@/components/ui/badge.tsx";
+import { Button } from "@/components/ui/button.tsx";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card.tsx";
 
 interface Meal {
-  id: string
-  name: string
-  description: string
-  image: string
-  dietaryTags: string[]
-  allergens: string[]
-  calories: number
-  protein: number
-  carbs: number
-  fat: number
+  allergens: string[];
+  calories: number;
+  carbs: number;
+  description: string;
+  dietaryTags: string[];
+  fat: number;
+  id: string;
+  image: string;
+  name: string;
+  protein: number;
 }
 
 interface MealSelectionProps {
-  meals: Record<string, number>
-  availableMeals: Meal[]
-  totalMeals: number
-  onIncrement: (mealId: string) => void
-  onDecrement: (mealId: string) => void
+  availableMeals: Meal[];
+  meals: Record<string, number>;
+  onDecrement: (mealId: string) => void;
+  onIncrement: (mealId: string) => void;
+  totalMeals: number;
 }
 
-export function MealSelection({ meals, availableMeals, totalMeals, onIncrement, onDecrement }: MealSelectionProps) {
-  const remaining = 10 - totalMeals
+export function MealSelection({
+  meals,
+  availableMeals,
+  totalMeals,
+  onIncrement,
+  onDecrement,
+}: MealSelectionProps) {
+  const remaining = 10 - totalMeals;
 
   return (
     <section aria-label="Select meals" className="space-y-6">
       <div className="text-center">
-        <div className="inline-flex items-center gap-2 px-4 py-2 bg-orange-50 text-orange-700 rounded-full text-sm font-medium">
+        <div className="inline-flex items-center gap-2 rounded-full bg-orange-50 px-4 py-2 font-medium text-orange-700 text-sm">
           Adjust your meal quantities • Total: {totalMeals}/10
         </div>
       </div>
 
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
         {availableMeals.map((meal) => {
-          const qty = meals[meal.id] || 0
+          const qty = meals[meal.id] || 0;
           return (
-            <Card key={meal.id} className="hover:shadow-md transition-shadow">
+            <Card className="transition-shadow hover:shadow-md" key={meal.id}>
               <CardHeader className="pb-3">
-                <CardTitle className="text-lg flex items-start justify-between gap-2">
+                <CardTitle className="flex items-start justify-between gap-2 text-lg">
                   <span className="leading-tight">{meal.name}</span>
                   {qty > 0 && (
-                    <span className="text-sm font-medium text-orange-600 bg-orange-50 px-2 py-1 rounded-full">
+                    <span className="rounded-full bg-orange-50 px-2 py-1 font-medium text-orange-600 text-sm">
                       x{qty}
                     </span>
                   )}
                 </CardTitle>
-                <CardDescription className="text-sm">{meal.description}</CardDescription>
-                <div className="flex flex-wrap gap-1 mt-2">
+                <CardDescription className="text-sm">
+                  {meal.description}
+                </CardDescription>
+                <div className="mt-2 flex flex-wrap gap-1">
                   {meal.dietaryTags.map((tag) => (
-                    <Badge key={tag} variant="secondary" className="text-xs">
+                    <Badge className="text-xs" key={tag} variant="secondary">
                       {tag}
                     </Badge>
                   ))}
                 </div>
-                <div className="text-xs text-muted-foreground mt-1">
+                <div className="mt-1 text-muted-foreground text-xs">
                   {meal.calories} cal • {meal.protein}g protein
                 </div>
               </CardHeader>
               <CardContent>
                 <div className="flex items-center justify-center gap-3">
                   <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => onDecrement(meal.id)}
-                    disabled={qty === 0}
                     className="h-8 w-8 p-0"
+                    disabled={qty === 0}
+                    onClick={() => onDecrement(meal.id)}
+                    size="sm"
+                    variant="outline"
                   >
                     −
                   </Button>
-                  <div className="min-w-8 text-center font-medium text-lg">{qty}</div>
+                  <div className="min-w-8 text-center font-medium text-lg">
+                    {qty}
+                  </div>
                   <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => onIncrement(meal.id)}
-                    disabled={remaining <= 0 && qty === 0}
                     className="h-8 w-8 p-0"
+                    disabled={remaining <= 0 && qty === 0}
+                    onClick={() => onIncrement(meal.id)}
+                    size="sm"
+                    variant="outline"
                   >
                     +
                   </Button>
                 </div>
               </CardContent>
             </Card>
-          )
+          );
         })}
       </div>
     </section>
-  )
+  );
 }

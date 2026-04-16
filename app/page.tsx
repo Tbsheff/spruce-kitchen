@@ -1,10 +1,10 @@
-"use client"
+"use client";
 
-import { Header } from "@/components/ui/header"
-import { Hero } from "@/components/ui/animated-hero"
-import { FeatureSection } from "@/components/ui/feature-section"
-import { FaqSection } from "@/components/ui/faq-section"
-import { Footer } from "@/components/ui/footer"
+import { Hero } from "@/components/ui/animated-hero.tsx";
+import { FaqSection } from "@/components/ui/faq-section.tsx";
+import { FeatureSection } from "@/components/ui/feature-section.tsx";
+import { Footer } from "@/components/ui/footer.tsx";
+import { Header } from "@/components/ui/header.tsx";
 
 export default function Home() {
   const faqItems = [
@@ -33,7 +33,7 @@ export default function Home() {
       answer:
         "Yes, you have complete flexibility. You can pause, skip, or cancel your subscription anytime through your account dashboard or by contacting our customer service team.",
     },
-  ]
+  ];
 
   return (
     <>
@@ -42,18 +42,18 @@ export default function Home() {
         <Hero />
         <FeatureSection />
         <FaqSection
-          title="Frequently Asked Questions"
-          description="Everything you need to know about Spruce Kitchen Meals"
-          items={faqItems}
           contactInfo={{
             title: "Still have questions?",
             description: "Our customer service team is here to help",
             buttonText: "Contact Support",
             onContact: () => console.log("Contact support clicked"),
           }}
+          description="Everything you need to know about Spruce Kitchen Meals"
+          items={faqItems}
+          title="Frequently Asked Questions"
         />
       </main>
       <Footer />
     </>
-  )
+  );
 }

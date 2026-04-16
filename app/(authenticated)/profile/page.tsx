@@ -1,65 +1,78 @@
-"use client"
+"use client";
 
-import type React from "react"
-
-import { useState } from "react"
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
-import { Label } from "@/components/ui/label"
-import { Textarea } from "@/components/ui/textarea"
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
-import { Badge } from "@/components/ui/badge"
-import { Separator } from "@/components/ui/separator"
-import { toast } from "@/hooks/use-toast"
-import { trpc } from "@/lib/trpc/client"
-import { useAuth } from "@/lib/auth-context"
-import { User, Mail, Save, Camera, Shield } from "lucide-react"
+import { Camera, Mail, Save, Shield, User } from "lucide-react";
+import type React from "react";
+import { useState } from "react";
+import {
+  Avatar,
+  AvatarFallback,
+  AvatarImage,
+} from "@/components/ui/avatar.tsx";
+import { Badge } from "@/components/ui/badge.tsx";
+import { Button } from "@/components/ui/button.tsx";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card.tsx";
+import { Input } from "@/components/ui/input.tsx";
+import { Label } from "@/components/ui/label.tsx";
+import { Separator } from "@/components/ui/separator.tsx";
+import { Textarea } from "@/components/ui/textarea.tsx";
+import { toast } from "@/hooks/use-toast.ts";
+import { useAuth } from "@/lib/auth-context.tsx";
+import { trpc } from "@/lib/trpc/client.ts";
 
 export default function ProfilePage() {
-  const { user } = useAuth()
-  const { data: profile } = trpc.user.getProfile.useQuery()
+  const { user } = useAuth();
+  trpc.user.getProfile.useQuery();
 
   const updateProfile = trpc.user.updateProfile.useMutation({
     onSuccess: () => {
       toast({
         title: "Profile updated",
         description: "Your profile has been updated successfully.",
-      })
+      });
     },
     onError: (error) => {
       toast({
         title: "Error",
         description: error.message,
         variant: "destructive",
-      })
+      });
     },
-  })
+  });
 
   const [formData, setFormData] = useState({
     name: user?.name || "",
     email: user?.email || "",
     bio: "",
     location: "",
-  })
+  });
 
   const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault()
+    e.preventDefault();
     await updateProfile.mutateAsync({
       name: formData.name,
       email: formData.email,
-    })
-  }
+    });
+  };
 
   const accountAge = user?.createdAt
-    ? Math.floor((Date.now() - new Date(user.createdAt).getTime()) / (1000 * 60 * 60 * 24))
-    : 0
+    ? Math.floor(
+        (Date.now() - user.createdAt.getTime()) / (1000 * 60 * 60 * 24)
+      )
+    : 0;
 
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-3xl font-bold tracking-tight">Profile</h1>
-        <p className="text-muted-foreground">Manage your personal information and preferences</p>
+        <h1 className="font-bold text-3xl tracking-tight">Profile</h1>
+        <p className="text-muted-foreground">
+          Manage your personal information and preferences
+        </p>
       </div>
 
       <div className="grid gap-6 lg:grid-cols-3">
@@ -69,13 +82,18 @@ export default function ProfilePage() {
               <div className="flex justify-center">
                 <div className="relative">
                   <Avatar className="h-24 w-24">
-                    <AvatarImage src={user?.image || ""} alt={user?.name || ""} />
-                    <AvatarFallback className="text-2xl">{user?.name?.charAt(0)?.toUpperCase() || "U"}</AvatarFallback>
+                    <AvatarImage
+                      alt={user?.name || ""}
+                      src={user?.image ?? ""}
+                    />
+                    <AvatarFallback className="text-2xl">
+                      {user?.name?.charAt(0)?.toUpperCase() || "U"}
+                    </AvatarFallback>
                   </Avatar>
                   <Button
+                    className="absolute -right-2 -bottom-2 h-8 w-8 rounded-full bg-transparent p-0"
                     size="sm"
                     variant="outline"
-                    className="absolute -bottom-2 -right-2 h-8 w-8 rounded-full p-0 bg-transparent"
                   >
                     <Camera className="h-4 w-4" />
                   </Button>
@@ -86,15 +104,23 @@ export default function ProfilePage() {
             </CardHeader>
             <CardContent className="space-y-4">
               <div className="flex items-center justify-between">
-                <span className="text-sm text-muted-foreground">Member since</span>
-                <span className="text-sm font-medium">{accountAge > 0 ? `${accountAge} days ago` : "Today"}</span>
+                <span className="text-muted-foreground text-sm">
+                  Member since
+                </span>
+                <span className="font-medium text-sm">
+                  {accountAge > 0 ? `${accountAge} days ago` : "Today"}
+                </span>
               </div>
               <div className="flex items-center justify-between">
-                <span className="text-sm text-muted-foreground">Account status</span>
+                <span className="text-muted-foreground text-sm">
+                  Account status
+                </span>
                 <Badge variant="default">Active</Badge>
               </div>
               <div className="flex items-center justify-between">
-                <span className="text-sm text-muted-foreground">Email verified</span>
+                <span className="text-muted-foreground text-sm">
+                  Email verified
+                </span>
                 <Badge variant="secondary">
                   <Shield className="mr-1 h-3 w-3" />
                   Verified
@@ -104,35 +130,41 @@ export default function ProfilePage() {
           </Card>
         </div>
 
-        <div className="lg:col-span-2 space-y-6">
+        <div className="space-y-6 lg:col-span-2">
           <Card>
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
                 <User className="h-5 w-5" />
                 Personal Information
               </CardTitle>
-              <CardDescription>Update your personal details and contact information</CardDescription>
+              <CardDescription>
+                Update your personal details and contact information
+              </CardDescription>
             </CardHeader>
             <CardContent>
-              <form onSubmit={handleSubmit} className="space-y-4">
+              <form className="space-y-4" onSubmit={handleSubmit}>
                 <div className="grid gap-4 md:grid-cols-2">
                   <div className="space-y-2">
                     <Label htmlFor="name">Full Name</Label>
                     <Input
                       id="name"
-                      value={formData.name}
-                      onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                      onChange={(e) =>
+                        setFormData({ ...formData, name: e.target.value })
+                      }
                       placeholder="Enter your full name"
+                      value={formData.name}
                     />
                   </div>
                   <div className="space-y-2">
                     <Label htmlFor="email">Email Address</Label>
                     <Input
                       id="email"
+                      onChange={(e) =>
+                        setFormData({ ...formData, email: e.target.value })
+                      }
+                      placeholder="Enter your email"
                       type="email"
                       value={formData.email}
-                      onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-                      placeholder="Enter your email"
                     />
                   </div>
                 </div>
@@ -141,9 +173,11 @@ export default function ProfilePage() {
                   <Label htmlFor="location">Location</Label>
                   <Input
                     id="location"
-                    value={formData.location}
-                    onChange={(e) => setFormData({ ...formData, location: e.target.value })}
+                    onChange={(e) =>
+                      setFormData({ ...formData, location: e.target.value })
+                    }
                     placeholder="City, State"
+                    value={formData.location}
                   />
                 </div>
 
@@ -151,14 +185,16 @@ export default function ProfilePage() {
                   <Label htmlFor="bio">Bio</Label>
                   <Textarea
                     id="bio"
-                    value={formData.bio}
-                    onChange={(e) => setFormData({ ...formData, bio: e.target.value })}
+                    onChange={(e) =>
+                      setFormData({ ...formData, bio: e.target.value })
+                    }
                     placeholder="Tell us a bit about yourself..."
                     rows={3}
+                    value={formData.bio}
                   />
                 </div>
 
-                <Button type="submit" disabled={updateProfile.isPending}>
+                <Button disabled={updateProfile.isPending} type="submit">
                   <Save className="mr-2 h-4 w-4" />
                   {updateProfile.isPending ? "Saving..." : "Save Changes"}
                 </Button>
@@ -172,14 +208,18 @@ export default function ProfilePage() {
                 <Mail className="h-5 w-5" />
                 Communication Preferences
               </CardTitle>
-              <CardDescription>Choose how you'd like to hear from us</CardDescription>
+              <CardDescription>
+                Choose how you'd like to hear from us
+              </CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
               <div className="space-y-3">
                 <div className="flex items-center justify-between">
                   <div>
                     <p className="font-medium">Order Updates</p>
-                    <p className="text-sm text-muted-foreground">Get notified about your order status</p>
+                    <p className="text-muted-foreground text-sm">
+                      Get notified about your order status
+                    </p>
                   </div>
                   <Badge variant="default">Enabled</Badge>
                 </div>
@@ -187,7 +227,9 @@ export default function ProfilePage() {
                 <div className="flex items-center justify-between">
                   <div>
                     <p className="font-medium">Marketing Emails</p>
-                    <p className="text-sm text-muted-foreground">Receive promotions and special offers</p>
+                    <p className="text-muted-foreground text-sm">
+                      Receive promotions and special offers
+                    </p>
                   </div>
                   <Badge variant="outline">Disabled</Badge>
                 </div>
@@ -195,12 +237,14 @@ export default function ProfilePage() {
                 <div className="flex items-center justify-between">
                   <div>
                     <p className="font-medium">Newsletter</p>
-                    <p className="text-sm text-muted-foreground">Weekly recipes and cooking tips</p>
+                    <p className="text-muted-foreground text-sm">
+                      Weekly recipes and cooking tips
+                    </p>
                   </div>
                   <Badge variant="default">Enabled</Badge>
                 </div>
               </div>
-              <Button variant="outline" className="w-full bg-transparent">
+              <Button className="w-full bg-transparent" variant="outline">
                 Manage Email Preferences
               </Button>
             </CardContent>
@@ -208,5 +252,5 @@ export default function ProfilePage() {
         </div>
       </div>
     </div>
-  )
+  );
 }

@@ -1,14 +1,17 @@
+import path from "node:path";
+import { fileURLToPath } from "node:url";
+
+const rootDirectory = path.dirname(fileURLToPath(import.meta.url));
+
 /** @type {import('next').NextConfig} */
 const nextConfig = {
-  eslint: {
-    ignoreDuringBuilds: true,
-  },
-  typescript: {
-    ignoreBuildErrors: true,
-  },
   images: {
     unoptimized: true,
   },
-}
+  serverExternalPackages: ["better-auth", "postgres", "drizzle-orm"],
+  turbopack: {
+    root: rootDirectory,
+  },
+};
 
-export default nextConfig
+export default nextConfig;

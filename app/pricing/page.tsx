@@ -1,17 +1,31 @@
-"use client"
+import { Check, Clock, Star, Truck } from "lucide-react";
+import Link from "next/link";
+import { Badge } from "@/components/ui/badge.tsx";
+import { Button } from "@/components/ui/button.tsx";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card.tsx";
+import { FaqSection } from "@/components/ui/faq-section.tsx";
+import { Footer } from "@/components/ui/footer.tsx";
+import { Header } from "@/components/ui/header.tsx";
 
-import { Header } from "@/components/ui/header"
-import { Footer } from "@/components/ui/footer"
-import { Button } from "@/components/ui/button"
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { Badge } from "@/components/ui/badge"
-import { FaqSection } from "@/components/ui/faq-section"
-import { Check, Star, Truck, Clock } from "lucide-react"
-import Link from "next/link"
-import { useState } from "react"
+type BillingType = "subscription" | "one-time";
 
-export default function PricingPage() {
-  const [billingType, setBillingType] = useState<"subscription" | "one-time">("subscription")
+function getBillingType(value: string | string[] | undefined): BillingType {
+  return value === "one-time" ? "one-time" : "subscription";
+}
+
+export default async function PricingPage({
+  searchParams,
+}: {
+  searchParams: Promise<Record<string, string | string[] | undefined>>;
+}) {
+  const resolvedSearchParams = await searchParams;
+  const billingType = getBillingType(resolvedSearchParams.billing);
 
   const plans = [
     {
@@ -20,7 +34,7 @@ export default function PricingPage() {
       oneTimePrice: 89,
       meals: 10,
       servings: "2-3 people",
-      totalServings: 25, // 10 meals × 2.5 average servings
+      totalServings: 25,
       popular: false,
       features: [
         "10 chef-crafted meals",
@@ -37,7 +51,7 @@ export default function PricingPage() {
       oneTimePrice: 169,
       meals: 10,
       servings: "4-6 people",
-      totalServings: 50, // 10 meals × 5 average servings
+      totalServings: 50,
       popular: true,
       features: [
         "10 chef-crafted meals",
@@ -50,7 +64,7 @@ export default function PricingPage() {
         "Family portion sizes",
       ],
     },
-  ]
+  ];
 
   const faqItems = [
     {
@@ -73,21 +87,23 @@ export default function PricingPage() {
       answer:
         "We stand behind our quality! If you're not satisfied with any meal, contact our customer service team and we'll make it right with a replacement or credit.",
     },
-  ]
+  ];
 
   return (
     <div className="min-h-screen bg-background">
       <Header />
 
       <main className="pt-20">
-        {/* Hero Section */}
-        <section className="py-16 px-4">
-          <div className="max-w-4xl mx-auto text-center">
-            <h1 className="text-4xl md:text-6xl font-bold mb-6">Simple, Transparent Pricing</h1>
-            <p className="text-xl text-muted-foreground mb-8">
-              Choose the perfect meal plan for your family. No hidden fees, no commitments. Cancel or pause anytime.
+        <section className="px-4 py-16">
+          <div className="mx-auto max-w-4xl text-center">
+            <h1 className="mb-6 font-bold text-4xl md:text-6xl">
+              Simple, Transparent Pricing
+            </h1>
+            <p className="mb-8 text-muted-foreground text-xl">
+              Choose the perfect meal plan for your family. No hidden fees, no
+              commitments. Cancel or pause anytime.
             </p>
-            <div className="flex items-center justify-center gap-4 text-sm text-muted-foreground">
+            <div className="flex items-center justify-center gap-4 text-muted-foreground text-sm">
               <div className="flex items-center gap-2">
                 <Truck className="h-4 w-4" />
                 <span>Free delivery over $50</span>
@@ -104,171 +120,219 @@ export default function PricingPage() {
           </div>
         </section>
 
-        <section className="py-8 px-4">
-          <div className="max-w-4xl mx-auto">
-            <div className="flex justify-center mb-8">
-              <div className="bg-muted p-1 rounded-lg">
-                <button
-                  onClick={() => setBillingType("subscription")}
-                  className={`px-6 py-2 rounded-md text-sm font-medium transition-colors ${
+        <section className="px-4 py-8">
+          <div className="mx-auto max-w-4xl">
+            <div className="mb-8 flex justify-center">
+              <div
+                aria-label="Billing type"
+                className="rounded-lg bg-muted p-1"
+                role="tablist"
+              >
+                <Link
+                  aria-selected={billingType === "subscription"}
+                  className={`inline-flex rounded-md px-6 py-2 font-medium text-sm transition-colors ${
                     billingType === "subscription"
                       ? "bg-background text-foreground shadow-sm"
                       : "text-muted-foreground hover:text-foreground"
                   }`}
+                  href="/pricing?billing=subscription"
+                  role="tab"
                 >
                   Subscription
-                  <Badge className="ml-2 bg-primary text-primary-foreground">Save 10%</Badge>
-                </button>
-                <button
-                  onClick={() => setBillingType("one-time")}
-                  className={`px-6 py-2 rounded-md text-sm font-medium transition-colors ${
+                  <Badge className="ml-2 bg-primary text-primary-foreground">
+                    Save 10%
+                  </Badge>
+                </Link>
+                <Link
+                  aria-selected={billingType === "one-time"}
+                  className={`inline-flex rounded-md px-6 py-2 font-medium text-sm transition-colors ${
                     billingType === "one-time"
                       ? "bg-background text-foreground shadow-sm"
                       : "text-muted-foreground hover:text-foreground"
                   }`}
+                  href="/pricing?billing=one-time"
+                  role="tab"
                 >
                   One-Time Purchase
-                </button>
+                </Link>
               </div>
             </div>
           </div>
         </section>
 
-        {/* Pricing Cards */}
-        <section className="py-16 px-4">
-          <div className="max-w-6xl mx-auto">
-            <div className="grid md:grid-cols-2 gap-8 max-w-4xl mx-auto items-stretch">
-              {plans.map((plan, index) => {
-                const subscriptionPrice = Math.round(plan.oneTimePrice * 0.9)
-                const currentPrice = billingType === "subscription" ? subscriptionPrice : plan.oneTimePrice
-                const pricePerServing = (currentPrice / plan.totalServings).toFixed(2)
+        <section className="px-4 py-16">
+          <div className="mx-auto max-w-6xl">
+            <div className="mx-auto grid max-w-4xl items-stretch gap-8 md:grid-cols-2">
+              {plans.map((plan) => {
+                const subscriptionPrice = Math.round(plan.oneTimePrice * 0.9);
+                const currentPrice =
+                  billingType === "subscription"
+                    ? subscriptionPrice
+                    : plan.oneTimePrice;
+                const pricePerServing = (
+                  currentPrice / plan.totalServings
+                ).toFixed(2);
 
                 return (
                   <Card
-                    key={index}
-                    className={`relative flex flex-col ${plan.popular ? "border-primary/20 shadow-lg scale-105" : ""}`}
+                    className={`relative flex flex-col ${plan.popular ? "scale-105 border-primary/20 shadow-lg" : ""}`}
+                    key={plan.name}
                   >
                     {plan.popular && (
-                      <Badge className="absolute -top-3 left-1/2 transform -translate-x-1/2 bg-primary text-primary-foreground">
+                      <Badge className="absolute -top-3 left-1/2 -translate-x-1/2 transform bg-primary text-primary-foreground">
                         Most Popular
                       </Badge>
                     )}
-                    <CardHeader className="text-center pb-4">
+                    <CardHeader className="pb-4 text-center">
                       <CardTitle className="text-2xl">{plan.name}</CardTitle>
-                      <CardDescription className="text-base">{plan.description}</CardDescription>
+                      <CardDescription className="text-base">
+                        {plan.description}
+                      </CardDescription>
                       <div className="mt-4">
                         <div className="flex items-center justify-center gap-2">
-                          <span className="text-3xl font-bold">${currentPrice}</span>
+                          <span className="font-bold text-3xl">
+                            ${currentPrice}
+                          </span>
                           {billingType === "subscription" && (
-                            <span className="text-lg text-muted-foreground line-through">${plan.oneTimePrice}</span>
+                            <span className="text-lg text-muted-foreground line-through">
+                              ${plan.oneTimePrice}
+                            </span>
                           )}
                         </div>
-                        <p className="text-sm text-muted-foreground mt-1">${pricePerServing} per serving</p>
+                        <p className="mt-1 text-muted-foreground text-sm">
+                          ${pricePerServing} per serving
+                        </p>
                         {billingType === "subscription" && (
-                          <p className="text-xs text-primary font-medium mt-1">Delivered monthly</p>
+                          <p className="mt-1 font-medium text-primary text-xs">
+                            Delivered monthly
+                          </p>
                         )}
                       </div>
                     </CardHeader>
-                    <CardContent className="flex flex-col flex-grow">
-                      <div className="space-y-4 flex-grow">
-                        <div className="flex items-center justify-between p-3 bg-muted/50 rounded-lg">
-                          <span className="font-medium">{plan.meals} meals</span>
-                          <span className="text-sm text-muted-foreground">{plan.servings}</span>
+                    <CardContent className="flex flex-grow flex-col">
+                      <div className="flex-grow space-y-4">
+                        <div className="flex items-center justify-between rounded-lg bg-muted/50 p-3">
+                          <span className="font-medium">
+                            {plan.meals} meals
+                          </span>
+                          <span className="text-muted-foreground text-sm">
+                            {plan.servings}
+                          </span>
                         </div>
 
-                        <ul className="space-y-3 flex-1 min-h-0">
-                          {plan.features.map((feature, featureIndex) => (
-                            <li key={featureIndex} className="flex items-center gap-3">
-                              <Check className="h-4 w-4 text-green-600 flex-shrink-0" />
+                        <ul className="min-h-0 flex-1 space-y-3">
+                          {plan.features.map((feature) => (
+                            <li
+                              className="flex items-center gap-3"
+                              key={feature}
+                            >
+                              <Check className="h-4 w-4 flex-shrink-0 text-green-600" />
                               <span className="text-sm">{feature}</span>
                             </li>
                           ))}
                           {billingType === "subscription" && (
                             <li className="flex items-center gap-3">
-                              <Check className="h-4 w-4 text-green-600 flex-shrink-0" />
-                              <span className="text-sm">Cancel or pause anytime</span>
+                              <Check className="h-4 w-4 flex-shrink-0 text-green-600" />
+                              <span className="text-sm">
+                                Cancel or pause anytime
+                              </span>
                             </li>
                           )}
                         </ul>
                       </div>
 
                       <div className="mt-6">
-                        <Link href="/onboarding" className="block">
-                          <Button className={`w-full bg-primary hover:bg-primary/90 text-primary-foreground`} size="lg">
-                            {billingType === "subscription" ? "Start Subscription" : "Order Now"}
+                        <Link className="block" href="/onboarding">
+                          <Button
+                            className="w-full bg-primary text-primary-foreground hover:bg-primary/90"
+                            size="lg"
+                          >
+                            {billingType === "subscription"
+                              ? "Start Subscription"
+                              : "Order Now"}
                           </Button>
                         </Link>
                       </div>
                     </CardContent>
                   </Card>
-                )
+                );
               })}
             </div>
           </div>
         </section>
 
-        {/* How It Works */}
-        <section className="py-16 px-4 bg-muted/30">
-          <div className="max-w-6xl mx-auto">
-            <h2 className="text-3xl md:text-4xl font-bold text-center mb-12">How It Works</h2>
-            <div className="grid md:grid-cols-3 gap-8">
+        <section className="bg-muted/30 px-4 py-16">
+          <div className="mx-auto max-w-6xl">
+            <h2 className="mb-12 text-center font-bold text-3xl md:text-4xl">
+              How It Works
+            </h2>
+            <div className="grid gap-8 md:grid-cols-3">
               <div className="text-center">
-                <div className="w-16 h-16 bg-primary/10 rounded-full flex items-center justify-center mx-auto mb-4">
-                  <span className="text-2xl font-bold text-primary">1</span>
+                <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-primary/10">
+                  <span className="font-bold text-2xl text-primary">1</span>
                 </div>
-                <h3 className="text-xl font-semibold mb-3">Choose Your Plan</h3>
+                <h3 className="mb-3 font-semibold text-xl">Choose Your Plan</h3>
                 <p className="text-muted-foreground">
-                  Select the perfect box size for your family and customize your meal preferences.
+                  Select the perfect box size for your family and customize your
+                  meal preferences.
                 </p>
               </div>
               <div className="text-center">
-                <div className="w-16 h-16 bg-primary/10 rounded-full flex items-center justify-center mx-auto mb-4">
-                  <span className="text-2xl font-bold text-primary">2</span>
+                <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-primary/10">
+                  <span className="font-bold text-2xl text-primary">2</span>
                 </div>
-                <h3 className="text-xl font-semibold mb-3">We Prepare & Deliver</h3>
+                <h3 className="mb-3 font-semibold text-xl">
+                  We Prepare & Deliver
+                </h3>
                 <p className="text-muted-foreground">
-                  Our chefs craft your meals with fresh ingredients and deliver them frozen to your door.
+                  Our chefs craft your meals with fresh ingredients and deliver
+                  them frozen to your door.
                 </p>
               </div>
               <div className="text-center">
-                <div className="w-16 h-16 bg-primary/10 rounded-full flex items-center justify-center mx-auto mb-4">
-                  <span className="text-2xl font-bold text-primary">3</span>
+                <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-primary/10">
+                  <span className="font-bold text-2xl text-primary">3</span>
                 </div>
-                <h3 className="text-xl font-semibold mb-3">Heat & Enjoy</h3>
+                <h3 className="mb-3 font-semibold text-xl">Heat & Enjoy</h3>
                 <p className="text-muted-foreground">
-                  Simply heat your meals in 15 minutes or less and enjoy restaurant-quality dinners at home.
+                  Simply heat your meals in 15 minutes or less and enjoy
+                  restaurant-quality dinners at home.
                 </p>
               </div>
             </div>
           </div>
         </section>
 
-        {/* FAQ Section */}
         <FaqSection
-          title="Frequently Asked Questions"
-          description="Everything you need to know about our pricing and plans"
-          items={faqItems}
           contactInfo={{
             title: "Still have questions?",
-            description: "Our customer service team is here to help with pricing questions",
+            description:
+              "Our customer service team is here to help with pricing questions",
             buttonText: "Contact Support",
-            onContact: () => console.log("Contact support clicked"),
           }}
+          description="Everything you need to know about our pricing and plans"
+          items={faqItems}
+          title="Frequently Asked Questions"
         />
 
-        {/* CTA Section */}
-        <section className="py-16 px-4 bg-primary/5 dark:bg-primary/10">
-          <div className="max-w-4xl mx-auto text-center">
-            <h2 className="text-3xl md:text-4xl font-bold mb-6">Ready to Transform Your Dinners?</h2>
-            <p className="text-xl text-muted-foreground mb-8">
-              Join thousands of families who have discovered the joy of stress-free, delicious meals.
+        <section className="bg-primary/5 px-4 py-16 dark:bg-primary/10">
+          <div className="mx-auto max-w-4xl text-center">
+            <h2 className="mb-6 font-bold text-3xl md:text-4xl">
+              Ready to Transform Your Dinners?
+            </h2>
+            <p className="mb-8 text-muted-foreground text-xl">
+              Join thousands of families who have discovered the joy of
+              stress-free, delicious meals.
             </p>
             <Link href="/onboarding">
-              <Button size="lg" className="bg-primary hover:bg-primary/90 text-primary-foreground">
+              <Button
+                className="bg-primary text-primary-foreground hover:bg-primary/90"
+                size="lg"
+              >
                 Start Your First Box
               </Button>
             </Link>
-            <p className="text-sm text-muted-foreground mt-4">
+            <p className="mt-4 text-muted-foreground text-sm">
               No commitment required • Cancel anytime • Free delivery over $50
             </p>
           </div>
@@ -277,5 +341,5 @@ export default function PricingPage() {
 
       <Footer />
     </div>
-  )
+  );
 }

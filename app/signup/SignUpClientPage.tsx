@@ -1,32 +1,71 @@
-"use client"
+"use client";
 
-import type React from "react"
+import { AlertCircle, Eye, EyeOff } from "lucide-react";
 
-import Link from "next/link"
-import { useRouter } from "next/navigation"
-import { Button } from "@/components/ui/button"
-import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
-import { Input } from "@/components/ui/input"
-import { Label } from "@/components/ui/label"
-import { Separator } from "@/components/ui/separator"
-import { Checkbox } from "@/components/ui/checkbox"
-import { Eye, EyeOff, AlertCircle } from "lucide-react"
-import { useState, useEffect } from "react"
-import { Header } from "@/components/ui/header"
-import { Footer } from "@/components/ui/footer"
-import { useAuth } from "@/lib/auth-context"
-import { Alert, AlertDescription } from "@/components/ui/alert"
-import { validatePassword } from "@/lib/security/password-policy"
-import type { PasswordValidationResult } from "@/lib/security/password-policy"
+import Link from "next/link";
+import { useRouter } from "next/navigation";
+import type React from "react";
+import { useEffect, useState } from "react";
+import { Alert, AlertDescription } from "@/components/ui/alert.tsx";
+import { Button } from "@/components/ui/button.tsx";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardFooter,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card.tsx";
+import { Checkbox } from "@/components/ui/checkbox.tsx";
+import { Footer } from "@/components/ui/footer.tsx";
+import { Header } from "@/components/ui/header.tsx";
+import { Input } from "@/components/ui/input.tsx";
+import { Label } from "@/components/ui/label.tsx";
+import { Separator } from "@/components/ui/separator.tsx";
+import { useAuth } from "@/lib/auth-context.tsx";
+import type { PasswordValidationResult } from "@/lib/security/password-policy.ts";
+import { validatePassword } from "@/lib/security/password-policy.ts";
+
+type PasswordStrength = PasswordValidationResult["strength"];
+
+const PASSWORD_STRENGTH_TEXT_COLOR: Record<PasswordStrength, string> = {
+  weak: "text-red-600",
+  fair: "text-orange-600",
+  good: "text-blue-600",
+  strong: "text-green-600",
+};
+
+const PASSWORD_STRENGTH_BAR: Record<PasswordStrength, string> = {
+  weak: "w-1/4 bg-red-500",
+  fair: "w-2/4 bg-orange-500",
+  good: "w-3/4 bg-blue-500",
+  strong: "w-full bg-green-500",
+};
+
+interface FormData {
+  agreeToTerms: boolean;
+  confirmPassword: string;
+  email: string;
+  firstName: string;
+  lastName: string;
+  marketingEmails: boolean;
+  password: string;
+}
+
+type SubmitState =
+  | { kind: "idle" }
+  | { kind: "loading" }
+  | { kind: "error"; message: string }
+  | { kind: "success"; message?: string };
 
 export default function SignUpClientPage() {
-  const [showPassword, setShowPassword] = useState(false)
-  const [showConfirmPassword, setShowConfirmPassword] = useState(false)
-  const [isLoading, setIsLoading] = useState(false)
-  const [error, setError] = useState("")
-  const [passwordValidation, setPasswordValidation] = useState<PasswordValidationResult | null>(null)
+  const [showPassword, setShowPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+  const [submitState, setSubmitState] = useState<SubmitState>({ kind: "idle" });
+  const [passwordValidation, setPasswordValidation] =
+    useState<PasswordValidationResult | null>(null);
 
-  const [formData, setFormData] = useState({
+  const [formData, setFormData] = useState<FormData>({
     firstName: "",
     lastName: "",
     email: "",
@@ -34,13 +73,20 @@ export default function SignUpClientPage() {
     confirmPassword: "",
     agreeToTerms: false,
     marketingEmails: false,
-  })
+  });
 
-  const { signUp } = useAuth()
-  const router = useRouter()
+  const { signUp } = useAuth();
+  const router = useRouter();
 
-  const handleInputChange = (field: string, value: string | boolean) => {
-    setFormData((prev) => ({ ...prev, [field]: value }))
+  const isLoading = submitState.kind === "loading";
+  const errorMessage =
+    submitState.kind === "error" ? submitState.message : null;
+
+  function handleInputChange<K extends keyof FormData>(
+    field: K,
+    value: FormData[K]
+  ): void {
+    setFormData((prev) => ({ ...prev, [field]: value }));
   }
 
   // Validate password on change
@@ -48,36 +94,43 @@ export default function SignUpClientPage() {
     if (formData.password) {
       const result = validatePassword(formData.password, {
         email: formData.email,
-        name: `${formData.firstName} ${formData.lastName}`.trim()
-      })
-      setPasswordValidation(result)
+        name: `${formData.firstName} ${formData.lastName}`.trim(),
+      });
+      setPasswordValidation(result);
     } else {
-      setPasswordValidation(null)
+      setPasswordValidation(null);
     }
-  }, [formData.password, formData.email, formData.firstName, formData.lastName])
+  }, [
+    formData.password,
+    formData.email,
+    formData.firstName,
+    formData.lastName,
+  ]);
 
   const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault()
-    setIsLoading(true)
-    setError("")
+    e.preventDefault();
+    setSubmitState({ kind: "loading" });
 
     // Validate password policy
     if (passwordValidation && !passwordValidation.isValid) {
-      setError(`Password does not meet requirements: ${passwordValidation.errors.join(", ")}`)
-      setIsLoading(false)
-      return
+      setSubmitState({
+        kind: "error",
+        message: `Password does not meet requirements: ${passwordValidation.errors.join(", ")}`,
+      });
+      return;
     }
 
     if (formData.password !== formData.confirmPassword) {
-      setError("Passwords do not match")
-      setIsLoading(false)
-      return
+      setSubmitState({ kind: "error", message: "Passwords do not match" });
+      return;
     }
 
     if (!formData.agreeToTerms) {
-      setError("You must agree to the Terms of Service and Privacy Policy")
-      setIsLoading(false)
-      return
+      setSubmitState({
+        kind: "error",
+        message: "You must agree to the Terms of Service and Privacy Policy",
+      });
+      return;
     }
 
     try {
@@ -85,83 +138,98 @@ export default function SignUpClientPage() {
         email: formData.email,
         password: formData.password,
         name: `${formData.firstName} ${formData.lastName}`,
-      })
+      });
 
       if (result.error) {
-        setError(result.error.message || "Sign up failed. Please try again.")
+        setSubmitState({
+          kind: "error",
+          message: result.error.message || "Sign up failed. Please try again.",
+        });
       } else {
+        setSubmitState({ kind: "success" });
         // Redirect to onboarding
-        router.push("/onboarding")
-        router.refresh()
+        router.push("/onboarding");
+        router.refresh();
       }
     } catch (err) {
-      setError("An unexpected error occurred. Please try again.")
-      console.error("Sign up error:", err)
-    } finally {
-      setIsLoading(false)
+      setSubmitState({
+        kind: "error",
+        message: "An unexpected error occurred. Please try again.",
+      });
+      console.error("Sign up error:", err);
     }
-  }
+  };
 
-  const handleSocialSignUp = async (provider: "google" | "facebook") => {
+  const handleSocialSignUp = (provider: "google" | "facebook") => {
     try {
-      setIsLoading(true)
-      setError("")
+      setSubmitState({ kind: "loading" });
 
       // TODO: Fix social signup with new better-auth API
-      setError(`${provider} signup not yet implemented with new auth system`)
+      setSubmitState({
+        kind: "error",
+        message: `${provider} signup not yet implemented with new auth system`,
+      });
     } catch (err) {
-      setError(`${provider} sign up failed. Please try again.`)
-      console.error(`${provider} sign up error:`, err)
-      setIsLoading(false)
+      setSubmitState({
+        kind: "error",
+        message: `${provider} sign up failed. Please try again.`,
+      });
+      console.error(`${provider} sign up error:`, err);
     }
-  }
+  };
 
   return (
     <div className="min-h-screen bg-background">
       <Header />
 
       <main className="container mx-auto px-4 py-16">
-        <div className="flex min-h-[calc(100vh-200px)] items-center justify-center my-[11px]">
+        <div className="my-[11px] flex min-h-[calc(100vh-200px)] items-center justify-center">
           <Card className="w-full max-w-md">
             <CardHeader className="space-y-1">
-              <CardTitle className="text-2xl font-bold text-center">Create Account</CardTitle>
+              <CardTitle className="text-center font-bold text-2xl">
+                Create Account
+              </CardTitle>
               <CardDescription className="text-center">
                 Join Spruce Kitchen Meals and start enjoying chef-crafted meals
               </CardDescription>
             </CardHeader>
 
             <CardContent className="space-y-4">
-              {error && (
+              {errorMessage && (
                 <Alert variant="destructive">
                   <AlertCircle className="h-4 w-4" />
-                  <AlertDescription>{error}</AlertDescription>
+                  <AlertDescription>{errorMessage}</AlertDescription>
                 </Alert>
               )}
 
-              <form onSubmit={handleSubmit} className="space-y-4">
+              <form className="space-y-4" onSubmit={handleSubmit}>
                 <div className="grid grid-cols-2 gap-4">
                   <div className="space-y-2">
                     <Label htmlFor="firstName">First Name</Label>
                     <Input
+                      disabled={isLoading}
                       id="firstName"
-                      type="text"
+                      onChange={(e) =>
+                        handleInputChange("firstName", e.target.value)
+                      }
                       placeholder="John"
                       required
-                      disabled={isLoading}
+                      type="text"
                       value={formData.firstName}
-                      onChange={(e) => handleInputChange("firstName", e.target.value)}
                     />
                   </div>
                   <div className="space-y-2">
                     <Label htmlFor="lastName">Last Name</Label>
                     <Input
+                      disabled={isLoading}
                       id="lastName"
-                      type="text"
+                      onChange={(e) =>
+                        handleInputChange("lastName", e.target.value)
+                      }
                       placeholder="Doe"
                       required
-                      disabled={isLoading}
+                      type="text"
                       value={formData.lastName}
-                      onChange={(e) => handleInputChange("lastName", e.target.value)}
                     />
                   </div>
                 </div>
@@ -169,13 +237,13 @@ export default function SignUpClientPage() {
                 <div className="space-y-2">
                   <Label htmlFor="email">Email</Label>
                   <Input
+                    disabled={isLoading}
                     id="email"
-                    type="email"
+                    onChange={(e) => handleInputChange("email", e.target.value)}
                     placeholder="john@example.com"
                     required
-                    disabled={isLoading}
+                    type="email"
                     value={formData.email}
-                    onChange={(e) => handleInputChange("email", e.target.value)}
                   />
                 </div>
 
@@ -183,75 +251,125 @@ export default function SignUpClientPage() {
                   <Label htmlFor="password">Password</Label>
                   <div className="relative">
                     <Input
+                      className="pr-10"
+                      disabled={isLoading}
                       id="password"
-                      type={showPassword ? "text" : "password"}
+                      onChange={(e) =>
+                        handleInputChange("password", e.target.value)
+                      }
                       placeholder="Create a strong password"
                       required
-                      disabled={isLoading}
-                      className="pr-10"
+                      type={showPassword ? "text" : "password"}
                       value={formData.password}
-                      onChange={(e) => handleInputChange("password", e.target.value)}
                     />
                     <Button
+                      className="absolute top-0 right-0 h-full px-3 py-2 hover:bg-transparent"
+                      disabled={isLoading}
+                      onClick={() => setShowPassword(!showPassword)}
+                      size="sm"
                       type="button"
                       variant="ghost"
-                      size="sm"
-                      className="absolute right-0 top-0 h-full px-3 py-2 hover:bg-transparent"
-                      onClick={() => setShowPassword(!showPassword)}
-                      disabled={isLoading}
                     >
-                      {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                      {showPassword ? (
+                        <EyeOff className="h-4 w-4" />
+                      ) : (
+                        <Eye className="h-4 w-4" />
+                      )}
                     </Button>
                   </div>
-                  
+
                   {/* Password Strength Indicator */}
                   {passwordValidation && formData.password && (
                     <div className="mt-2 space-y-2">
                       <div className="flex items-center justify-between">
-                        <span className="text-sm font-medium">Password Strength:</span>
-                        <span className={`text-sm font-medium ${
-                          passwordValidation.strength === 'weak' ? 'text-red-600' :
-                          passwordValidation.strength === 'fair' ? 'text-orange-600' :
-                          passwordValidation.strength === 'good' ? 'text-blue-600' :
-                          'text-green-600'
-                        }`}>
+                        <span className="font-medium text-sm">
+                          Password Strength:
+                        </span>
+                        <span
+                          className={`font-medium text-sm ${PASSWORD_STRENGTH_TEXT_COLOR[passwordValidation.strength]}`}
+                        >
                           {passwordValidation.strength.toUpperCase()}
                         </span>
                       </div>
-                      
+
                       {/* Strength Bar */}
-                      <div className="w-full bg-gray-200 rounded-full h-2">
+                      <div className="h-2 w-full rounded-full bg-gray-200">
                         <div
-                          className={`h-2 rounded-full transition-all duration-300 ${
-                            passwordValidation.strength === 'weak' ? 'bg-red-500 w-1/4' :
-                            passwordValidation.strength === 'fair' ? 'bg-orange-500 w-2/4' :
-                            passwordValidation.strength === 'good' ? 'bg-blue-500 w-3/4' :
-                            'bg-green-500 w-full'
-                          }`}
+                          className={`h-2 rounded-full transition-all duration-300 ${PASSWORD_STRENGTH_BAR[passwordValidation.strength]}`}
                         />
                       </div>
-                      
+
                       {/* Requirements List */}
                       {!passwordValidation.isValid && (
                         <div className="mt-2">
-                          <p className="text-sm text-gray-600 mb-1">Password must include:</p>
-                          <ul className="text-xs text-gray-500 space-y-1">
-                            <li className={passwordValidation.errors.some(e => e.includes('12 characters')) ? 'text-red-600' : 'text-green-600'}>
+                          <p className="mb-1 text-gray-600 text-sm">
+                            Password must include:
+                          </p>
+                          <ul className="space-y-1 text-gray-500 text-xs">
+                            <li
+                              className={
+                                passwordValidation.errors.some((e) =>
+                                  e.includes("12 characters")
+                                )
+                                  ? "text-red-600"
+                                  : "text-green-600"
+                              }
+                            >
                               ✓ At least 12 characters long
                             </li>
-                            <li className={passwordValidation.errors.some(e => e.includes('uppercase')) ? 'text-red-600' : 'text-green-600'}>
+                            <li
+                              className={
+                                passwordValidation.errors.some((e) =>
+                                  e.includes("uppercase")
+                                )
+                                  ? "text-red-600"
+                                  : "text-green-600"
+                              }
+                            >
                               ✓ At least one uppercase letter (A-Z)
                             </li>
-                            <li className={passwordValidation.errors.some(e => e.includes('lowercase')) ? 'text-red-600' : 'text-green-600'}>
+                            <li
+                              className={
+                                passwordValidation.errors.some((e) =>
+                                  e.includes("lowercase")
+                                )
+                                  ? "text-red-600"
+                                  : "text-green-600"
+                              }
+                            >
                               ✓ At least one lowercase letter (a-z)
                             </li>
-                            <li className={passwordValidation.errors.some(e => e.includes('number')) ? 'text-red-600' : 'text-green-600'}>
+                            <li
+                              className={
+                                passwordValidation.errors.some((e) =>
+                                  e.includes("number")
+                                )
+                                  ? "text-red-600"
+                                  : "text-green-600"
+                              }
+                            >
                               ✓ At least one number (0-9)
                             </li>
-                            <li className={passwordValidation.errors.some(e => e.includes('special character')) ? 'text-red-600' : 'text-green-600'}>
+                            <li
+                              className={
+                                passwordValidation.errors.some((e) =>
+                                  e.includes("special character")
+                                )
+                                  ? "text-red-600"
+                                  : "text-green-600"
+                              }
+                            >
                               ✓ At least one special character (!@#$%^&*)
                             </li>
-                            <li className={passwordValidation.errors.some(e => e.includes('common')) ? 'text-red-600' : 'text-green-600'}>
+                            <li
+                              className={
+                                passwordValidation.errors.some((e) =>
+                                  e.includes("common")
+                                )
+                                  ? "text-red-600"
+                                  : "text-green-600"
+                              }
+                            >
                               ✓ Cannot be a common password
                             </li>
                           </ul>
@@ -265,43 +383,59 @@ export default function SignUpClientPage() {
                   <Label htmlFor="confirmPassword">Confirm Password</Label>
                   <div className="relative">
                     <Input
+                      className="pr-10"
+                      disabled={isLoading}
                       id="confirmPassword"
-                      type={showConfirmPassword ? "text" : "password"}
+                      onChange={(e) =>
+                        handleInputChange("confirmPassword", e.target.value)
+                      }
                       placeholder="Confirm your password"
                       required
-                      disabled={isLoading}
-                      className="pr-10"
+                      type={showConfirmPassword ? "text" : "password"}
                       value={formData.confirmPassword}
-                      onChange={(e) => handleInputChange("confirmPassword", e.target.value)}
                     />
                     <Button
+                      className="absolute top-0 right-0 h-full px-3 py-2 hover:bg-transparent"
+                      disabled={isLoading}
+                      onClick={() =>
+                        setShowConfirmPassword(!showConfirmPassword)
+                      }
+                      size="sm"
                       type="button"
                       variant="ghost"
-                      size="sm"
-                      className="absolute right-0 top-0 h-full px-3 py-2 hover:bg-transparent"
-                      onClick={() => setShowConfirmPassword(!showConfirmPassword)}
-                      disabled={isLoading}
                     >
-                      {showConfirmPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                      {showConfirmPassword ? (
+                        <EyeOff className="h-4 w-4" />
+                      ) : (
+                        <Eye className="h-4 w-4" />
+                      )}
                     </Button>
                   </div>
                 </div>
 
                 <div className="flex items-center space-x-2">
                   <Checkbox
-                    id="terms"
-                    required
                     checked={formData.agreeToTerms}
-                    onCheckedChange={(checked) => handleInputChange("agreeToTerms", checked as boolean)}
                     disabled={isLoading}
+                    id="terms"
+                    onCheckedChange={(checked) =>
+                      handleInputChange("agreeToTerms", checked === true)
+                    }
+                    required
                   />
-                  <Label htmlFor="terms" className="text-sm">
+                  <Label className="text-sm" htmlFor="terms">
                     I agree to the{" "}
-                    <Link href="/terms-of-service" className="text-primary hover:underline">
+                    <Link
+                      className="text-primary hover:underline"
+                      href="/terms-of-service"
+                    >
                       Terms of Service
                     </Link>{" "}
                     and{" "}
-                    <Link href="/privacy-policy" className="text-primary hover:underline">
+                    <Link
+                      className="text-primary hover:underline"
+                      href="/privacy-policy"
+                    >
                       Privacy Policy
                     </Link>
                   </Label>
@@ -309,17 +443,23 @@ export default function SignUpClientPage() {
 
                 <div className="flex items-center space-x-2">
                   <Checkbox
-                    id="marketing"
                     checked={formData.marketingEmails}
-                    onCheckedChange={(checked) => handleInputChange("marketingEmails", checked as boolean)}
                     disabled={isLoading}
+                    id="marketing"
+                    onCheckedChange={(checked) =>
+                      handleInputChange("marketingEmails", checked === true)
+                    }
                   />
-                  <Label htmlFor="marketing" className="text-sm">
+                  <Label className="text-sm" htmlFor="marketing">
                     Send me updates about new meals and special offers
                   </Label>
                 </div>
 
-                <Button type="submit" className="w-full bg-primary hover:bg-primary/90" disabled={isLoading}>
+                <Button
+                  className="w-full bg-primary hover:bg-primary/90"
+                  disabled={isLoading}
+                  type="submit"
+                >
                   {isLoading ? "Creating Account..." : "Create Account"}
                 </Button>
               </form>
@@ -329,13 +469,23 @@ export default function SignUpClientPage() {
                   <Separator className="w-full" />
                 </div>
                 <div className="relative flex justify-center text-xs uppercase">
-                  <span className="bg-background px-2 text-muted-foreground">Or continue with</span>
+                  <span className="bg-background px-2 text-muted-foreground">
+                    Or continue with
+                  </span>
                 </div>
               </div>
 
               <div className="grid grid-cols-2 gap-4">
-                <Button variant="outline" disabled={isLoading} onClick={() => handleSocialSignUp("google")}>
-                  <svg className="mr-2 h-4 w-4" viewBox="0 0 24 24">
+                <Button
+                  disabled={isLoading}
+                  onClick={() => handleSocialSignUp("google")}
+                  variant="outline"
+                >
+                  <svg
+                    aria-hidden="true"
+                    className="mr-2 h-4 w-4"
+                    viewBox="0 0 24 24"
+                  >
                     <path
                       d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"
                       fill="#4285F4"
@@ -355,8 +505,16 @@ export default function SignUpClientPage() {
                   </svg>
                   Google
                 </Button>
-                <Button variant="outline" disabled={isLoading} onClick={() => handleSocialSignUp("facebook")}>
-                  <svg className="mr-2 h-4 w-4 fill-[#1877F2]" viewBox="0 0 24 24">
+                <Button
+                  disabled={isLoading}
+                  onClick={() => handleSocialSignUp("facebook")}
+                  variant="outline"
+                >
+                  <svg
+                    aria-hidden="true"
+                    className="mr-2 h-4 w-4 fill-[#1877F2]"
+                    viewBox="0 0 24 24"
+                  >
                     <path d="M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.47h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.47h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z" />
                   </svg>
                   Facebook
@@ -365,9 +523,12 @@ export default function SignUpClientPage() {
             </CardContent>
 
             <CardFooter>
-              <p className="text-center text-sm text-muted-foreground w-full">
+              <p className="w-full text-center text-muted-foreground text-sm">
                 Already have an account?{" "}
-                <Link href="/login" className="text-primary hover:underline font-medium">
+                <Link
+                  className="font-medium text-primary hover:underline"
+                  href="/login"
+                >
                   Sign in
                 </Link>
               </p>
@@ -378,5 +539,5 @@ export default function SignUpClientPage() {
 
       <Footer />
     </div>
-  )
+  );
 }

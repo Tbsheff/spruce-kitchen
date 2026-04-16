@@ -1,9 +1,10 @@
-import { notFound } from "next/navigation"
-import { Header } from "@/components/ui/header"
-import { Button } from "@/components/ui/button"
-import { Badge } from "@/components/ui/badge"
-import { Clock, Users, ChefHat, ArrowLeft } from "lucide-react"
-import Link from "next/link"
+import { ArrowLeft, ChefHat, Clock, Users } from "lucide-react";
+import Image from "next/image";
+import Link from "next/link";
+import { notFound } from "next/navigation";
+import { Badge } from "@/components/ui/badge.tsx";
+import { Button } from "@/components/ui/button.tsx";
+import { Header } from "@/components/ui/header.tsx";
 
 const recipes = {
   "burrito-bowls": {
@@ -38,11 +39,16 @@ const recipes = {
   "chicken-alfredo": {
     name: "Chicken Alfredo",
     image: "/placeholder.svg?height=400&width=600",
-    description: "Tender chicken breast in a rich, creamy alfredo sauce served over perfectly cooked fettuccine pasta.",
+    description:
+      "Tender chicken breast in a rich, creamy alfredo sauce served over perfectly cooked fettuccine pasta.",
     prepTime: "12 minutes",
     servings: 1,
     difficulty: "Easy",
-    ingredients: ["1 frozen chicken alfredo meal", "Optional: Fresh parsley", "Optional: Grated parmesan cheese"],
+    ingredients: [
+      "1 frozen chicken alfredo meal",
+      "Optional: Fresh parsley",
+      "Optional: Grated parmesan cheese",
+    ],
     instructions: [
       "Remove meal from freezer packaging.",
       "Pierce film covering several times with a fork.",
@@ -59,15 +65,22 @@ const recipes = {
     ],
   },
   // Add more recipes as needed...
+};
+
+function isRecipeId(id: string): id is keyof typeof recipes {
+  return id in recipes;
 }
 
-export default async function RecipePage({ params }: { params: Promise<{ id: string }> }) {
-  const { id } = await params
-  const recipe = recipes[id as keyof typeof recipes]
-
-  if (!recipe) {
-    notFound()
+export default async function RecipePage({
+  params,
+}: {
+  params: Promise<{ id: string }>;
+}) {
+  const { id } = await params;
+  if (!isRecipeId(id)) {
+    notFound();
   }
+  const recipe = recipes[id];
 
   return (
     <div className="min-h-screen bg-background">
@@ -77,24 +90,32 @@ export default async function RecipePage({ params }: { params: Promise<{ id: str
         <div className="container mx-auto px-4">
           {/* Back Button */}
           <Link
+            className="mb-8 inline-flex items-center gap-2 text-muted-foreground hover:text-foreground"
             href="/menu"
-            className="inline-flex items-center gap-2 text-muted-foreground hover:text-foreground mb-8"
           >
             <ArrowLeft className="h-4 w-4" />
             Back to Menu
           </Link>
 
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-12">
+          <div className="grid grid-cols-1 gap-12 lg:grid-cols-2">
             {/* Recipe Image */}
             <div className="space-y-6">
-              <img src={recipe.image || "/placeholder.svg"} alt={recipe.name} className="w-full rounded-lg shadow-lg" />
+              <Image
+                alt={recipe.name}
+                className="w-full rounded-lg shadow-lg"
+                height={400}
+                src={recipe.image || "/placeholder.svg"}
+                width={600}
+              />
             </div>
 
             {/* Recipe Details */}
             <div className="space-y-6">
               <div>
-                <h1 className="text-4xl font-bold mb-4">{recipe.name}</h1>
-                <p className="text-lg text-muted-foreground">{recipe.description}</p>
+                <h1 className="mb-4 font-bold text-4xl">{recipe.name}</h1>
+                <p className="text-lg text-muted-foreground">
+                  {recipe.description}
+                </p>
               </div>
 
               {/* Recipe Info */}
@@ -117,11 +138,13 @@ export default async function RecipePage({ params }: { params: Promise<{ id: str
 
               {/* Ingredients */}
               <div>
-                <h2 className="text-2xl font-semibold mb-4">What You'll Need</h2>
+                <h2 className="mb-4 font-semibold text-2xl">
+                  What You'll Need
+                </h2>
                 <ul className="space-y-2">
-                  {recipe.ingredients.map((ingredient, index) => (
-                    <li key={index} className="flex items-start gap-2">
-                      <span className="w-2 h-2 bg-orange-600 rounded-full mt-2 flex-shrink-0"></span>
+                  {recipe.ingredients.map((ingredient) => (
+                    <li className="flex items-start gap-2" key={ingredient}>
+                      <span className="mt-2 h-2 w-2 flex-shrink-0 rounded-full bg-orange-600" />
                       <span>{ingredient}</span>
                     </li>
                   ))}
@@ -130,13 +153,15 @@ export default async function RecipePage({ params }: { params: Promise<{ id: str
 
               {/* Instructions */}
               <div>
-                <h2 className="text-2xl font-semibold mb-4">Preparation Instructions</h2>
+                <h2 className="mb-4 font-semibold text-2xl">
+                  Preparation Instructions
+                </h2>
                 <ol className="space-y-4">
                   {recipe.instructions.map((instruction, index) => (
-                    <li key={index} className="flex gap-4">
+                    <li className="flex gap-4" key={instruction}>
                       <Badge
+                        className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-full"
                         variant="outline"
-                        className="flex-shrink-0 w-8 h-8 rounded-full flex items-center justify-center"
                       >
                         {index + 1}
                       </Badge>
@@ -147,11 +172,11 @@ export default async function RecipePage({ params }: { params: Promise<{ id: str
               </div>
 
               {/* Tips */}
-              <div className="bg-orange-50 dark:bg-orange-950/20 p-6 rounded-lg">
-                <h3 className="text-lg font-semibold mb-3">Chef's Tips</h3>
+              <div className="rounded-lg bg-orange-50 p-6 dark:bg-orange-950/20">
+                <h3 className="mb-3 font-semibold text-lg">Chef's Tips</h3>
                 <ul className="space-y-2">
-                  {recipe.tips.map((tip, index) => (
-                    <li key={index} className="text-sm text-muted-foreground">
+                  {recipe.tips.map((tip) => (
+                    <li className="text-muted-foreground text-sm" key={tip}>
                       • {tip}
                     </li>
                   ))}
@@ -161,7 +186,10 @@ export default async function RecipePage({ params }: { params: Promise<{ id: str
               {/* CTA */}
               <div className="pt-6">
                 <Link href="/menu">
-                  <Button size="lg" className="w-full bg-primary hover:bg-primary/90">
+                  <Button
+                    className="w-full bg-primary hover:bg-primary/90"
+                    size="lg"
+                  >
                     Back to Menu
                   </Button>
                 </Link>
@@ -171,5 +199,5 @@ export default async function RecipePage({ params }: { params: Promise<{ id: str
         </div>
       </div>
     </div>
-  )
+  );
 }

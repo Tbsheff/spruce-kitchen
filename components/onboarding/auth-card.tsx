@@ -1,27 +1,33 @@
-"use client"
+"use client";
 
-import { useState } from "react"
-import { Button } from "@/components/ui/button"
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
-import { Input } from "@/components/ui/input"
-import { Label } from "@/components/ui/label"
-import { User, Eye, EyeOff } from "lucide-react"
+import { Eye, EyeOff, User } from "lucide-react";
+import { useState } from "react";
+import { Button } from "@/components/ui/button.tsx";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card.tsx";
+import { Input } from "@/components/ui/input.tsx";
+import { Label } from "@/components/ui/label.tsx";
 
-type AuthMode = "login" | "signup"
+type AuthMode = "login" | "signup";
 
 interface AuthCardProps {
-  authMode: AuthMode
-  email: string
-  password: string
-  firstName: string
-  lastName: string
-  isComplete: boolean
-  onAuthModeChange: (mode: AuthMode) => void
-  onEmailChange: (email: string) => void
-  onPasswordChange: (password: string) => void
-  onFirstNameChange: (firstName: string) => void
-  onLastNameChange: (lastName: string) => void
-  onSubmit: () => void
+  authMode: AuthMode;
+  email: string;
+  firstName: string;
+  isComplete: boolean;
+  lastName: string;
+  onAuthModeChange: (mode: AuthMode) => void;
+  onEmailChange: (email: string) => void;
+  onFirstNameChange: (firstName: string) => void;
+  onLastNameChange: (lastName: string) => void;
+  onPasswordChange: (password: string) => void;
+  onSubmit: () => void;
+  password: string;
 }
 
 export function AuthCard({
@@ -38,33 +44,39 @@ export function AuthCard({
   onLastNameChange,
   onSubmit,
 }: AuthCardProps) {
-  const [showPassword, setShowPassword] = useState(false)
+  const [showPassword, setShowPassword] = useState(false);
 
   return (
-    <Card className={`transition-all duration-500 ${isComplete ? "opacity-50 scale-95" : "opacity-100 scale-100"}`}>
+    <Card
+      className={`transition-all duration-500 ${isComplete ? "scale-95 opacity-50" : "scale-100 opacity-100"}`}
+    >
       <CardHeader>
         <CardTitle className="flex items-center gap-2">
           <User className="h-5 w-5" />
           Account Information
-          {isComplete && <span className="text-sm text-green-600 ml-auto">✓ Complete</span>}
+          {isComplete && (
+            <span className="ml-auto text-green-600 text-sm">✓ Complete</span>
+          )}
         </CardTitle>
-        <CardDescription>Create an account or sign in to complete your order.</CardDescription>
+        <CardDescription>
+          Create an account or sign in to complete your order.
+        </CardDescription>
       </CardHeader>
       <CardContent className="space-y-4">
         <div className="flex gap-2">
           <Button
-            variant={authMode === "signup" ? "default" : "outline"}
-            onClick={() => onAuthModeChange("signup")}
             className="flex-1"
             disabled={isComplete}
+            onClick={() => onAuthModeChange("signup")}
+            variant={authMode === "signup" ? "default" : "outline"}
           >
             Create Account
           </Button>
           <Button
-            variant={authMode === "login" ? "default" : "outline"}
-            onClick={() => onAuthModeChange("login")}
             className="flex-1"
             disabled={isComplete}
+            onClick={() => onAuthModeChange("login")}
+            variant={authMode === "login" ? "default" : "outline"}
           >
             Sign In
           </Button>
@@ -75,21 +87,21 @@ export function AuthCard({
             <div className="space-y-2">
               <Label htmlFor="firstName">First Name</Label>
               <Input
+                disabled={isComplete}
                 id="firstName"
-                value={firstName}
                 onChange={(e) => onFirstNameChange(e.target.value)}
                 placeholder="John"
-                disabled={isComplete}
+                value={firstName}
               />
             </div>
             <div className="space-y-2">
               <Label htmlFor="lastName">Last Name</Label>
               <Input
+                disabled={isComplete}
                 id="lastName"
-                value={lastName}
                 onChange={(e) => onLastNameChange(e.target.value)}
                 placeholder="Doe"
-                disabled={isComplete}
+                value={lastName}
               />
             </div>
           </div>
@@ -98,12 +110,12 @@ export function AuthCard({
         <div className="space-y-2">
           <Label htmlFor="email">Email</Label>
           <Input
+            disabled={isComplete}
             id="email"
-            type="email"
-            value={email}
             onChange={(e) => onEmailChange(e.target.value)}
             placeholder="john@example.com"
-            disabled={isComplete}
+            type="email"
+            value={email}
           />
         </div>
 
@@ -111,32 +123,39 @@ export function AuthCard({
           <Label htmlFor="password">Password</Label>
           <div className="relative">
             <Input
+              disabled={isComplete}
               id="password"
-              type={showPassword ? "text" : "password"}
-              value={password}
               onChange={(e) => onPasswordChange(e.target.value)}
               placeholder="••••••••"
-              disabled={isComplete}
+              type={showPassword ? "text" : "password"}
+              value={password}
             />
             <Button
+              className="absolute top-0 right-0 h-full px-3 py-2 hover:bg-transparent"
+              disabled={isComplete}
+              onClick={() => setShowPassword(!showPassword)}
+              size="sm"
               type="button"
               variant="ghost"
-              size="sm"
-              className="absolute right-0 top-0 h-full px-3 py-2 hover:bg-transparent"
-              onClick={() => setShowPassword(!showPassword)}
-              disabled={isComplete}
             >
-              {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+              {showPassword ? (
+                <EyeOff className="h-4 w-4" />
+              ) : (
+                <Eye className="h-4 w-4" />
+              )}
             </Button>
           </div>
         </div>
 
         {!isComplete && (
-          <Button onClick={onSubmit} className="w-full bg-primary hover:bg-primary/90">
+          <Button
+            className="w-full bg-primary hover:bg-primary/90"
+            onClick={onSubmit}
+          >
             {authMode === "login" ? "Sign In" : "Create Account"}
           </Button>
         )}
       </CardContent>
     </Card>
-  )
+  );
 }

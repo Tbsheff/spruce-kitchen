@@ -25,3 +25,22 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# Build / runtime artifacts
+codedb.snapshot
+tsconfig.tsbuildinfo
+1/
+.history/
+
+# Agent / AI tool local state
+.claude/
+.tldr/
+.tldrignore
+.impeccable.md
+
+# Generated preview artifacts
+project-description.pdf
+project-description.html
+
+# OS / editor
+.DS_Store
