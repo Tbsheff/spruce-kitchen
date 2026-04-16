@@ -3,7 +3,11 @@ import superjson from "superjson";
 import type { Role } from "@/lib/db/schema.ts";
 import { sanitizeObject } from "@/lib/security/input-validation.ts";
 import type { AuditDetails } from "@/lib/security/simple-audit.ts";
-import { SimpleAuditService } from "@/lib/security/simple-audit.ts";
+import {
+  logAudit,
+  logPermissionDenied,
+  logSecurityEvent,
+} from "@/lib/security/simple-audit.ts";
 import type { Context } from "./server.ts";
 
 const t = initTRPC.context<Context>().create({
@@ -59,7 +63,7 @@ const createProtectedProcedure = (
       const { ipAddress, userAgent } = metadataOf(ctx);
 
       if (requiredRoles && !requiredRoles.includes(me.role)) {
-        SimpleAuditService.logPermissionDenied(
+        logPermissionDenied(
           me.id,
           "access_endpoint",
           "api",
@@ -78,7 +82,7 @@ const createProtectedProcedure = (
       }
 
       if (requiredPermission && !me.can(requiredPermission)) {
-        SimpleAuditService.logPermissionDenied(
+        logPermissionDenied(
           me.id,
           "access_endpoint",
           "api",
@@ -115,7 +119,7 @@ const createProtectedProcedure = (
             // `details` accepts any plain record — callers commonly pass their
             // procedure input directly, which may contain `string | undefined`
             // fields that don't fit the strict AuditDetailValue shape. We cast
-            // to AuditDetails at the boundary; SimpleAuditService serializes
+            // to AuditDetails at the boundary; logAudit serializes
             // whatever's given.
             log: async (
               action: string,
@@ -123,7 +127,7 @@ const createProtectedProcedure = (
               resourceId?: string,
               details?: Record<string, unknown>
             ) =>
-              SimpleAuditService.log({
+              logAudit({
                 userId: me.id,
                 action,
                 resource,
@@ -170,7 +174,7 @@ export const createOwnershipProcedure = (_resourceUserIdField = "userId") => {
         user: me,
         validateOwnership: (resourceUserId: string, permission: string) => {
           if (!me.can(permission, resourceUserId)) {
-            SimpleAuditService.logPermissionDenied(
+            logPermissionDenied(
               me.id,
               "access_resource",
               "owned_resource",
@@ -244,7 +248,7 @@ export const rateLimitedProcedure = (maxRequests = 100, windowMs = 60_000) => {
     if (userLimit) {
       if (now < userLimit.resetTime) {
         if (userLimit.count >= maxRequests) {
-          SimpleAuditService.logSecurityEvent(
+          logSecurityEvent(
             "rate_limit_exceeded",
             userId,
             { limit: maxRequests, window: windowMs },

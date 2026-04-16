@@ -111,9 +111,19 @@ export default function OrdersPage() {
     },
   ];
 
-  const orders = orderHistory?.orders || mockOrders;
+  interface OrderItem {
+    createdAt: Date;
+    deliveryDate: Date | null;
+    id: string;
+    mealPlanId: string | null;
+    status: OrderStatus;
+    totalAmount: number;
+  }
 
-  const filteredOrders = orders.filter((order) => {
+  const orders: OrderItem[] = (orderHistory?.orders ??
+    mockOrders) as OrderItem[];
+
+  const filteredOrders = orders.filter((order: OrderItem) => {
     const matchesSearch = order.id
       .toLowerCase()
       .includes(searchQuery.toLowerCase());

@@ -4,6 +4,7 @@ import {
   MEALPLAN_PERMISSIONS,
   ORDER_PERMISSIONS,
 } from "@/lib/auth/permissions.ts";
+import type { NewMealPlan } from "@/lib/db/schema.ts";
 import { resourceProcedure } from "@/lib/identity/trpc/resource-procedure.ts";
 import { secureId, secureString } from "@/lib/security/input-validation.ts";
 import { rateLimitMiddleware } from "@/lib/security/rate-limiting.ts";
@@ -253,7 +254,7 @@ export const mealPlanRouter = createTRPCRouter({
     const { mealPlan } = await import("@/lib/db/schema.ts");
     const { eq } = await import("drizzle-orm");
 
-    const updateData: Partial<typeof mealPlan.$inferInsert> = {
+    const updateData: Partial<NewMealPlan> = {
       updatedAt: new Date(),
     };
     if (input.deliveryFrequency) {

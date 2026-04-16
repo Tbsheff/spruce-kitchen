@@ -18,6 +18,74 @@ interface AuthEmailUser {
   name?: string | null;
 }
 
+// Build email handler config only when resend is available.
+// Capturing the non-null client in a typed const avoids "possibly null" errors
+// inside async callbacks where TypeScript cannot narrow the outer let.
+const emailHandlers: {
+  sendResetPassword?: (args: {
+    user: AuthEmailUser;
+    url: string;
+  }) => Promise<void>;
+  sendVerificationEmail?: (args: {
+    user: AuthEmailUser;
+    url: string;
+  }) => Promise<void>;
+} = {};
+
+if (resend !== null) {
+  const mailer: Resend = resend;
+
+  emailHandlers.sendResetPassword = async ({
+    user,
+    url,
+  }: {
+    user: AuthEmailUser;
+    url: string;
+  }) => {
+    await mailer.emails.send({
+      from: "Spruce Kitchen <noreply@sprucekitchen.com>",
+      to: user.email,
+      subject: "Reset Your Password - Spruce Kitchen",
+      html: `
+            <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+              <h1 style="color: #E28441;">Reset Your Password</h1>
+              <p>Hi ${user.name || "there"},</p>
+              <p>You requested to reset your password for your Spruce Kitchen account.</p>
+              <p>Click the button below to reset your password:</p>
+              <a href="${url}" style="background-color: #E28441; color: white; padding: 12px 24px; text-decoration: none; border-radius: 6px; display: inline-block; margin: 16px 0;">Reset Password</a>
+              <p>If you didn't request this, you can safely ignore this email.</p>
+              <p>This link will expire in 1 hour for security reasons.</p>
+              <p>Best regards,<br>The Spruce Kitchen Team</p>
+            </div>
+          `,
+    });
+  };
+
+  emailHandlers.sendVerificationEmail = async ({
+    user,
+    url,
+  }: {
+    user: AuthEmailUser;
+    url: string;
+  }) => {
+    await mailer.emails.send({
+      from: "Spruce Kitchen <noreply@sprucekitchen.com>",
+      to: user.email,
+      subject: "Verify Your Email - Spruce Kitchen",
+      html: `
+            <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+              <h1 style="color: #E28441;">Welcome to Spruce Kitchen!</h1>
+              <p>Hi ${user.name || "there"},</p>
+              <p>Thanks for signing up! Please verify your email address to complete your account setup.</p>
+              <a href="${url}" style="background-color: #E28441; color: white; padding: 12px 24px; text-decoration: none; border-radius: 6px; display: inline-block; margin: 16px 0;">Verify Email</a>
+              <p>If you didn't create this account, you can safely ignore this email.</p>
+              <p>Best regards,<br>The Spruce Kitchen Team</p>
+            </div>
+          `,
+    });
+  };
+}
+
 export const auth = betterAuth({
   // Database configuration — DATABASE_URL is guaranteed non-null by the
   // early throw above, so we wire the adapter unconditionally.
@@ -40,56 +108,7 @@ export const auth = betterAuth({
   emailAndPassword: {
     enabled: true,
     requireEmailVerification: !!process.env.RESEND_API_KEY,
-    ...(resend && {
-      sendResetPassword: async ({
-        user,
-        url,
-      }: {
-        user: AuthEmailUser;
-        url: string;
-      }) => {
-        await resend.emails.send({
-          from: "Spruce Kitchen <noreply@sprucekitchen.com>",
-          to: user.email,
-          subject: "Reset Your Password - Spruce Kitchen",
-          html: `
-            <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
-              <h1 style="color: #E28441;">Reset Your Password</h1>
-              <p>Hi ${user.name || "there"},</p>
-              <p>You requested to reset your password for your Spruce Kitchen account.</p>
-              <p>Click the button below to reset your password:</p>
-              <a href="${url}" style="background-color: #E28441; color: white; padding: 12px 24px; text-decoration: none; border-radius: 6px; display: inline-block; margin: 16px 0;">Reset Password</a>
-              <p>If you didn't request this, you can safely ignore this email.</p>
-              <p>This link will expire in 1 hour for security reasons.</p>
-              <p>Best regards,<br>The Spruce Kitchen Team</p>
-            </div>
-          `,
-        });
-      },
-      sendVerificationEmail: async ({
-        user,
-        url,
-      }: {
-        user: AuthEmailUser;
-        url: string;
-      }) => {
-        await resend.emails.send({
-          from: "Spruce Kitchen <noreply@sprucekitchen.com>",
-          to: user.email,
-          subject: "Verify Your Email - Spruce Kitchen",
-          html: `
-            <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
-              <h1 style="color: #E28441;">Welcome to Spruce Kitchen!</h1>
-              <p>Hi ${user.name || "there"},</p>
-              <p>Thanks for signing up! Please verify your email address to complete your account setup.</p>
-              <a href="${url}" style="background-color: #E28441; color: white; padding: 12px 24px; text-decoration: none; border-radius: 6px; display: inline-block; margin: 16px 0;">Verify Email</a>
-              <p>If you didn't create this account, you can safely ignore this email.</p>
-              <p>Best regards,<br>The Spruce Kitchen Team</p>
-            </div>
-          `,
-        });
-      },
-    }),
+    ...emailHandlers,
   },
 
   // Social providers

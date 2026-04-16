@@ -56,33 +56,33 @@ import { trpc } from "@/lib/trpc/client.ts";
 
 type ServingSize = "small" | "medium" | "large";
 
-type AccountFields = {
-  name: string;
+interface AccountFields {
   email: string;
-};
+  name: string;
+}
 
-type PasswordFields = {
+interface PasswordFields {
+  confirmPassword: string;
   currentPassword: string;
   newPassword: string;
-  confirmPassword: string;
-};
+}
 
 type FormData = AccountFields & PasswordFields;
 
-type AddressData = {
-  street: string;
+interface AddressData {
   city: string;
-  state: string;
-  zipCode: string;
   country: string;
   instructions: string;
-};
+  state: string;
+  street: string;
+  zipCode: string;
+}
 
-type PreferencesData = {
-  dietaryRestrictions: string[];
+interface PreferencesData {
   allergies: string[];
+  dietaryRestrictions: string[];
   servingSize: ServingSize;
-};
+}
 
 const DEFAULT_ADDRESS_DATA: AddressData = {
   street: "",
@@ -98,6 +98,62 @@ const DEFAULT_PREFERENCES: PreferencesData = {
   allergies: [],
   servingSize: "medium",
 };
+
+type RawDeliveryAddress = AddressData | null | undefined;
+type RawPreferences =
+  | {
+      dietaryRestrictions?: string[];
+      allergies?: string[];
+      servingSize?: ServingSize;
+    }
+  | null
+  | undefined;
+
+function hydrateAddress(raw: RawDeliveryAddress): AddressData {
+  return {
+    street: raw?.street ?? DEFAULT_ADDRESS_DATA.street,
+    city: raw?.city ?? DEFAULT_ADDRESS_DATA.city,
+    state: raw?.state ?? DEFAULT_ADDRESS_DATA.state,
+    zipCode: raw?.zipCode ?? DEFAULT_ADDRESS_DATA.zipCode,
+    country: raw?.country ?? DEFAULT_ADDRESS_DATA.country,
+    instructions: raw?.instructions ?? DEFAULT_ADDRESS_DATA.instructions,
+  };
+}
+
+function hydratePreferences(raw: RawPreferences): PreferencesData {
+  return {
+    dietaryRestrictions:
+      raw?.dietaryRestrictions ?? DEFAULT_PREFERENCES.dietaryRestrictions,
+    allergies: raw?.allergies ?? DEFAULT_PREFERENCES.allergies,
+    servingSize: raw?.servingSize ?? DEFAULT_PREFERENCES.servingSize,
+  };
+}
+
+function mergeAddress(
+  edits: Partial<AddressData>,
+  hydrated: AddressData
+): AddressData {
+  return {
+    street: edits.street ?? hydrated.street,
+    city: edits.city ?? hydrated.city,
+    state: edits.state ?? hydrated.state,
+    zipCode: edits.zipCode ?? hydrated.zipCode,
+    country: edits.country ?? hydrated.country,
+    instructions: edits.instructions ?? hydrated.instructions,
+  };
+}
+
+function mergePreferences(
+  edits: Partial<PreferencesData>,
+  hydrated: PreferencesData
+): PreferencesData {
+  return {
+    dietaryRestrictions:
+      edits.dietaryRestrictions ?? hydrated.dietaryRestrictions,
+    allergies: edits.allergies ?? hydrated.allergies,
+    servingSize: edits.servingSize ?? hydrated.servingSize,
+  };
+}
 
 export default function SettingsPage() {
   const { user } = useAuth();
@@ -152,25 +208,13 @@ export default function SettingsPage() {
     email: profile?.email ?? user?.email ?? "",
   };
 
-  const hydratedAddressData: AddressData = {
-    street: profile?.deliveryAddress?.street ?? DEFAULT_ADDRESS_DATA.street,
-    city: profile?.deliveryAddress?.city ?? DEFAULT_ADDRESS_DATA.city,
-    state: profile?.deliveryAddress?.state ?? DEFAULT_ADDRESS_DATA.state,
-    zipCode: profile?.deliveryAddress?.zipCode ?? DEFAULT_ADDRESS_DATA.zipCode,
-    country: profile?.deliveryAddress?.country ?? DEFAULT_ADDRESS_DATA.country,
-    instructions:
-      profile?.deliveryAddress?.instructions ??
-      DEFAULT_ADDRESS_DATA.instructions,
-  };
-
-  const hydratedPreferences: PreferencesData = {
-    dietaryRestrictions:
-      profile?.preferences?.dietaryRestrictions ??
-      DEFAULT_PREFERENCES.dietaryRestrictions,
-    allergies: profile?.preferences?.allergies ?? DEFAULT_PREFERENCES.allergies,
-    servingSize:
-      profile?.preferences?.servingSize ?? DEFAULT_PREFERENCES.servingSize,
-  };
+  // profile?.deliveryAddress is inferred as `null` by tRPC (router always returns null).
+  const hydratedAddressData = hydrateAddress(
+    profile?.deliveryAddress as RawDeliveryAddress
+  );
+  const hydratedPreferences = hydratePreferences(
+    profile?.preferences as RawPreferences
+  );
 
   const [accountEdits, setAccountEdits] = useState<Partial<AccountFields>>({});
   const [passwordData, setPasswordData] = useState<PasswordFields>({
@@ -192,22 +236,8 @@ export default function SettingsPage() {
     confirmPassword: passwordData.confirmPassword,
   };
 
-  const addressData: AddressData = {
-    street: addressEdits.street ?? hydratedAddressData.street,
-    city: addressEdits.city ?? hydratedAddressData.city,
-    state: addressEdits.state ?? hydratedAddressData.state,
-    zipCode: addressEdits.zipCode ?? hydratedAddressData.zipCode,
-    country: addressEdits.country ?? hydratedAddressData.country,
-    instructions: addressEdits.instructions ?? hydratedAddressData.instructions,
-  };
-
-  const preferences: PreferencesData = {
-    dietaryRestrictions:
-      preferenceEdits.dietaryRestrictions ??
-      hydratedPreferences.dietaryRestrictions,
-    allergies: preferenceEdits.allergies ?? hydratedPreferences.allergies,
-    servingSize: preferenceEdits.servingSize ?? hydratedPreferences.servingSize,
-  };
+  const addressData = mergeAddress(addressEdits, hydratedAddressData);
+  const preferences = mergePreferences(preferenceEdits, hydratedPreferences);
 
   const [notifications, setNotifications] = useState({
     orderUpdates: true,
@@ -216,9 +246,7 @@ export default function SettingsPage() {
     newsletter: true,
   });
 
-  const handleProfileUpdate = async (e: React.FormEvent) => {
-    e.preventDefault();
-
+  const validatePasswordMatch = () => {
     if (
       formData.newPassword &&
       formData.newPassword !== formData.confirmPassword
@@ -228,26 +256,65 @@ export default function SettingsPage() {
         description: "New passwords do not match.",
         variant: "destructive",
       });
+      return false;
+    }
+    return true;
+  };
+
+  const submitProfile = async () => {
+    if (!validatePasswordMatch()) {
       return;
     }
-
     await updateProfile.mutateAsync({
       name: formData.name,
       email: formData.email,
     });
   };
 
-  const handleAddressUpdate = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const submitAddress = async () => {
     await updateAddress.mutateAsync(addressData);
   };
 
-  const handlePreferencesUpdate = async () => {
+  const submitPreferences = async () => {
     await updatePreferences.mutateAsync(preferences);
+  };
+
+  const handleProfileUpdate = async (e: React.FormEvent) => {
+    e.preventDefault();
+    await submitProfile();
+  };
+
+  const handleAddressUpdate = async (e: React.FormEvent) => {
+    e.preventDefault();
+    await submitAddress();
+  };
+
+  const handlePreferencesUpdate = async () => {
+    await submitPreferences();
   };
 
   const handleCancelSubscription = async (planId: string) => {
     await cancelMealPlan.mutateAsync({ id: planId });
+  };
+
+  const toggleDietaryRestriction = (restriction: string) => {
+    const updated = preferences.dietaryRestrictions.includes(restriction)
+      ? preferences.dietaryRestrictions.filter((r) => r !== restriction)
+      : [...preferences.dietaryRestrictions, restriction];
+    setPreferenceEdits((current) => ({
+      ...current,
+      dietaryRestrictions: updated,
+    }));
+  };
+
+  const toggleAllergy = (allergy: string) => {
+    const updated = preferences.allergies.includes(allergy)
+      ? preferences.allergies.filter((a) => a !== allergy)
+      : [...preferences.allergies, allergy];
+    setPreferenceEdits((current) => ({
+      ...current,
+      allergies: updated,
+    }));
   };
 
   const activePlans = mealPlans?.filter((plan) => plan.isActive) || [];
@@ -532,18 +599,7 @@ export default function SettingsPage() {
                     <Badge
                       className="cursor-pointer"
                       key={restriction}
-                      onClick={() => {
-                        const updated =
-                          preferences.dietaryRestrictions.includes(restriction)
-                            ? preferences.dietaryRestrictions.filter(
-                                (r) => r !== restriction
-                              )
-                            : [...preferences.dietaryRestrictions, restriction];
-                        setPreferenceEdits((current) => ({
-                          ...current,
-                          dietaryRestrictions: updated,
-                        }));
-                      }}
+                      onClick={() => toggleDietaryRestriction(restriction)}
                       variant={
                         preferences.dietaryRestrictions.includes(restriction)
                           ? "default"
@@ -564,17 +620,7 @@ export default function SettingsPage() {
                       <Badge
                         className="cursor-pointer"
                         key={allergy}
-                        onClick={() => {
-                          const updated = preferences.allergies.includes(
-                            allergy
-                          )
-                            ? preferences.allergies.filter((a) => a !== allergy)
-                            : [...preferences.allergies, allergy];
-                          setPreferenceEdits((current) => ({
-                            ...current,
-                            allergies: updated,
-                          }));
-                        }}
+                        onClick={() => toggleAllergy(allergy)}
                         variant={
                           preferences.allergies.includes(allergy)
                             ? "destructive"

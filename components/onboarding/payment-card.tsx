@@ -36,7 +36,7 @@ export function PaymentCard({
         <RadioGroup
           className="space-y-3"
           onValueChange={onPaymentMethodChange}
-          value={paymentMethod ?? null}
+          value={paymentMethod}
         >
           <div className="flex items-start gap-4 rounded-lg border p-4 transition-colors hover:bg-muted/50">
             <RadioGroupItem className="mt-1" id="card" value="card" />

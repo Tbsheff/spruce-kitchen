@@ -47,7 +47,7 @@ export function DeliveryPlan({
             <RadioGroup
               className="space-y-3"
               onValueChange={(v: PurchaseType) => onPurchaseTypeChange(v)}
-              value={purchaseType ?? null}
+              value={purchaseType}
             >
               <div className="flex items-start gap-4 rounded-lg border p-4 transition-colors hover:bg-muted/50">
                 <RadioGroupItem

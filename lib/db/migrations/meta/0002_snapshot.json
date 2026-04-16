@@ -1,6 +1,6 @@
 {
-  "id": "be43612b-a936-4310-bc8c-e62dd9a9d187",
-  "prevId": "8718a579-8789-4af8-a6b3-27e3eb59860a",
+  "id": "6caff45d-d0c2-438f-be8b-1baaf1289f0e",
+  "prevId": "be43612b-a936-4310-bc8c-e62dd9a9d187",
   "version": "7",
   "dialect": "postgresql",
   "tables": {
@@ -295,6 +295,18 @@
         "delivery_frequency": {
           "name": "delivery_frequency",
           "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "selected_meals": {
+          "name": "selected_meals",
+          "type": "jsonb",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "first_delivery_date": {
+          "name": "first_delivery_date",
+          "type": "timestamp",
           "primaryKey": false,
           "notNull": false
         },

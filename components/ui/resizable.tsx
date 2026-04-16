@@ -1,12 +1,10 @@
 "use client";
 
 import { GripVertical } from "lucide-react";
-// react-resizable-panels (current version) exports `Group` and `Separator`
-// instead of the older `PanelGroup` / `PanelResizeHandle` names.
 import {
   Panel,
-  Group as PanelGroup,
-  Separator as PanelResizeHandle,
+  PanelGroup,
+  PanelResizeHandle,
 } from "react-resizable-panels";
 
 import { cn } from "@/lib/utils.ts";

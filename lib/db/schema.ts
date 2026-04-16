@@ -172,8 +172,24 @@ export const rateLimitRecord = pgTable(
 );
 
 // Types
-export type User = typeof user.$inferSelect;
 export type Role = "customer" | "admin" | "super_admin";
+
+// Drizzle-inferred row and insert types. These are the canonical shapes for
+// every table in the schema — prefer these over hand-rolled interfaces so
+// type drift between the DB and app code is impossible by construction.
+export type User = typeof user.$inferSelect;
+export type NewUser = typeof user.$inferInsert;
+export type Session = typeof session.$inferSelect;
+export type NewSession = typeof session.$inferInsert;
+export type Account = typeof account.$inferSelect;
+export type NewAccount = typeof account.$inferInsert;
+export type Verification = typeof verification.$inferSelect;
+export type NewVerification = typeof verification.$inferInsert;
+export type MealPlan = typeof mealPlan.$inferSelect;
+export type NewMealPlan = typeof mealPlan.$inferInsert;
+export type Order = typeof order.$inferSelect;
+export type NewOrder = typeof order.$inferInsert;
+
 export type Permission = typeof permission.$inferSelect;
 export type RolePermission = typeof rolePermission.$inferSelect;
 export type AuditLog = typeof auditLog.$inferSelect;

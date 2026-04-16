@@ -3,7 +3,7 @@
 import { Loader2 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import type React from "react";
-import { useEffect } from "react";
+import { type JSX, useEffect } from "react";
 import { useCurrentUser } from "@/lib/identity/client.ts";
 
 interface AuthGuardProps {
@@ -11,7 +11,7 @@ interface AuthGuardProps {
   readonly fallback?: React.ReactNode;
 }
 
-export function AuthGuard({ children, fallback }: AuthGuardProps) {
+export function AuthGuard({ children, fallback }: AuthGuardProps): JSX.Element | null {
   const router = useRouter();
   const state = useCurrentUser();
 
@@ -23,11 +23,13 @@ export function AuthGuard({ children, fallback }: AuthGuardProps) {
 
   if (state.status === "loading") {
     return (
-      fallback ?? (
-        <div className="flex min-h-screen items-center justify-center">
-          <Loader2 className="h-8 w-8 animate-spin text-primary" />
-        </div>
-      )
+      <>
+        {fallback ?? (
+          <div className="flex min-h-screen items-center justify-center">
+            <Loader2 className="h-8 w-8 animate-spin text-primary" />
+          </div>
+        )}
+      </>
     );
   }
 

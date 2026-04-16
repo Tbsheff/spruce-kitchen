@@ -1,7 +1,14 @@
 "use client";
 
 import type React from "react";
-import { createContext, useContext, useEffect, useState } from "react";
+import {
+  createContext,
+  useCallback,
+  useContext,
+  useEffect,
+  useState,
+} from "react";
+import { toCanonicalSession, toCanonicalUser } from "@/lib/auth/adapters.ts";
 import type { Session, User } from "@/lib/types/auth.ts";
 
 // Better Auth's sign-in/up results carry more fields than we need (redirect,
@@ -37,7 +44,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [session, setSession] = useState<Session | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
-  const updateSession = async () => {
+  const updateSession = useCallback(async () => {
     try {
       // SECURITY: Database is REQUIRED - no bypasses
       if (!process.env.DATABASE_URL) {
@@ -53,9 +60,19 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       const sessionData = await getSession();
       // Better Auth's inferred session/user omits a few fields (ipAddress
       // null-vs-undefined, role) that our canonical DB-derived types declare.
-      // Cast to the canonical types — the DB row is authoritative at runtime.
-      setSession((sessionData.data?.session as Session | undefined) ?? null);
-      setUser((sessionData.data?.user as User | undefined) ?? null);
+      // Validate the runtime payload with adapters — the DB row is the
+      // source of truth, but we defensively shape-check before using it.
+      const data: unknown = sessionData.data;
+      const rawSession =
+        typeof data === "object" && data !== null && "session" in data
+          ? data.session
+          : null;
+      const rawUser =
+        typeof data === "object" && data !== null && "user" in data
+          ? data.user
+          : null;
+      setSession(toCanonicalSession(rawSession));
+      setUser(toCanonicalUser(rawUser));
     } catch (error) {
       console.error("Failed to get session:", error);
       setSession(null);
@@ -63,7 +80,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     } finally {
       setIsLoading(false);
     }
-  };
+  }, []);
 
   const signIn = async (credentials: { email: string; password: string }) => {
     try {
@@ -80,7 +97,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       const result = await signIn.email(credentials);
 
       if (result.data?.user) {
-        setUser(result.data.user as User);
+        const canonical = toCanonicalUser(result.data.user);
+        if (canonical !== null) {
+          setUser(canonical);
+        }
         // Get session after successful login
         await updateSession();
       }
@@ -114,7 +134,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       });
 
       if (result.data?.user) {
-        setUser(result.data.user as User);
+        const canonical = toCanonicalUser(result.data.user);
+        if (canonical !== null) {
+          setUser(canonical);
+        }
         // Get session after successful login
         await updateSession();
       }

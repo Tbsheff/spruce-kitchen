@@ -18,17 +18,14 @@ config({ path: resolve(process.cwd(), ".env.local") });
 
 import { scrypt } from "node:crypto";
 import { promisify } from "node:util";
-import type {
-  BillingType,
-  OrderStatus,
-  PlanType,
-  Role,
-} from "@/lib/types/enums.ts";
 import { db } from "./index.ts";
 import {
   account,
   auditLog,
   mealPlan,
+  type NewMealPlan,
+  type NewOrder,
+  type NewUser,
   order,
   permission,
   rateLimitRecord,
@@ -47,193 +44,193 @@ async function hashPassword(password: string): Promise<string> {
   return `${saltHex}:${derivedKey.toString("hex")}`;
 }
 
-// Sample data
-const SEED_DATA = {
-  permissions: [
-    {
-      id: "user:read",
-      name: "Read Users",
-      description: "View user information",
-      resource: "user",
-      action: "read",
-    },
-    {
-      id: "user:write",
-      name: "Write Users",
-      description: "Create and update users",
-      resource: "user",
-      action: "write",
-    },
-    {
-      id: "user:delete",
-      name: "Delete Users",
-      description: "Delete user accounts",
-      resource: "user",
-      action: "delete",
-    },
-    {
-      id: "mealplan:read",
-      name: "Read Meal Plans",
-      description: "View meal plans",
-      resource: "mealplan",
-      action: "read",
-    },
-    {
-      id: "mealplan:write",
-      name: "Write Meal Plans",
-      description: "Create and update meal plans",
-      resource: "mealplan",
-      action: "write",
-    },
-    {
-      id: "mealplan:delete",
-      name: "Delete Meal Plans",
-      description: "Delete meal plans",
-      resource: "mealplan",
-      action: "delete",
-    },
-    {
-      id: "order:read",
-      name: "Read Orders",
-      description: "View orders",
-      resource: "order",
-      action: "read",
-    },
-    {
-      id: "order:write",
-      name: "Write Orders",
-      description: "Create and update orders",
-      resource: "order",
-      action: "write",
-    },
-    {
-      id: "order:delete",
-      name: "Delete Orders",
-      description: "Delete orders",
-      resource: "order",
-      action: "delete",
-    },
-    {
-      id: "admin:users",
-      name: "Manage Users",
-      description: "Full user management",
-      resource: "admin",
-      action: "users",
-    },
-    {
-      id: "admin:system",
-      name: "System Admin",
-      description: "System configuration",
-      resource: "admin",
-      action: "system",
-    },
-  ],
+// Sample data. Arrays are typed with the Drizzle-inferred `New*` types so
+// string literals narrow correctly to the `$type<…>()` unions on the columns
+// (role, planType, billingType, status) without explicit `as` casts.
+const SEED_PERMISSIONS = [
+  {
+    id: "user:read",
+    name: "Read Users",
+    description: "View user information",
+    resource: "user",
+    action: "read",
+  },
+  {
+    id: "user:write",
+    name: "Write Users",
+    description: "Create and update users",
+    resource: "user",
+    action: "write",
+  },
+  {
+    id: "user:delete",
+    name: "Delete Users",
+    description: "Delete user accounts",
+    resource: "user",
+    action: "delete",
+  },
+  {
+    id: "mealplan:read",
+    name: "Read Meal Plans",
+    description: "View meal plans",
+    resource: "mealplan",
+    action: "read",
+  },
+  {
+    id: "mealplan:write",
+    name: "Write Meal Plans",
+    description: "Create and update meal plans",
+    resource: "mealplan",
+    action: "write",
+  },
+  {
+    id: "mealplan:delete",
+    name: "Delete Meal Plans",
+    description: "Delete meal plans",
+    resource: "mealplan",
+    action: "delete",
+  },
+  {
+    id: "order:read",
+    name: "Read Orders",
+    description: "View orders",
+    resource: "order",
+    action: "read",
+  },
+  {
+    id: "order:write",
+    name: "Write Orders",
+    description: "Create and update orders",
+    resource: "order",
+    action: "write",
+  },
+  {
+    id: "order:delete",
+    name: "Delete Orders",
+    description: "Delete orders",
+    resource: "order",
+    action: "delete",
+  },
+  {
+    id: "admin:users",
+    name: "Manage Users",
+    description: "Full user management",
+    resource: "admin",
+    action: "users",
+  },
+  {
+    id: "admin:system",
+    name: "System Admin",
+    description: "System configuration",
+    resource: "admin",
+    action: "system",
+  },
+];
 
-  users: [
-    {
-      id: "customer-1",
-      email: "customer@test.com",
-      name: "John Customer",
-      emailVerified: true,
-      image: null,
-      role: "customer" as Role,
-    },
-    {
-      id: "customer-2",
-      email: "jane@test.com",
-      name: "Jane Smith",
-      emailVerified: true,
-      image: null,
-      role: "customer" as Role,
-    },
-    {
-      id: "admin-1",
-      email: "admin@test.com",
-      name: "Admin User",
-      emailVerified: true,
-      image: null,
-      role: "admin" as Role,
-    },
-    {
-      id: "super-admin-1",
-      email: "superadmin@test.com",
-      name: "Super Admin",
-      emailVerified: true,
-      image: null,
-      role: "super_admin" as Role,
-    },
-  ],
+const SEED_USERS: NewUser[] = [
+  {
+    id: "customer-1",
+    email: "customer@test.com",
+    name: "John Customer",
+    emailVerified: true,
+    image: null,
+    role: "customer",
+  },
+  {
+    id: "customer-2",
+    email: "jane@test.com",
+    name: "Jane Smith",
+    emailVerified: true,
+    image: null,
+    role: "customer",
+  },
+  {
+    id: "admin-1",
+    email: "admin@test.com",
+    name: "Admin User",
+    emailVerified: true,
+    image: null,
+    role: "admin",
+  },
+  {
+    id: "super-admin-1",
+    email: "superadmin@test.com",
+    name: "Super Admin",
+    emailVerified: true,
+    image: null,
+    role: "super_admin",
+  },
+];
 
-  mealPlans: [
-    {
-      id: "plan-small-weekly",
-      userId: "customer-1",
-      planType: "small" as PlanType,
-      billingType: "subscription" as BillingType,
-      deliveryFrequency: "weekly",
-      isActive: true,
-    },
-    {
-      id: "plan-medium-monthly",
-      userId: "customer-1",
-      planType: "medium" as PlanType,
-      billingType: "subscription" as BillingType,
-      deliveryFrequency: "monthly",
-      isActive: true,
-    },
-    {
-      id: "plan-small-onetime",
-      userId: "customer-2",
-      planType: "small" as PlanType,
-      billingType: "one-time" as BillingType,
-      deliveryFrequency: null,
-      isActive: true,
-    },
-    {
-      id: "plan-inactive",
-      userId: "customer-2",
-      planType: "medium" as PlanType,
-      billingType: "subscription" as BillingType,
-      deliveryFrequency: "bi-weekly",
-      isActive: false,
-    },
-  ],
+const SEED_MEAL_PLANS: NewMealPlan[] = [
+  {
+    id: "plan-small-weekly",
+    userId: "customer-1",
+    planType: "small",
+    billingType: "subscription",
+    deliveryFrequency: "weekly",
+    isActive: true,
+  },
+  {
+    id: "plan-medium-monthly",
+    userId: "customer-1",
+    planType: "medium",
+    billingType: "subscription",
+    deliveryFrequency: "monthly",
+    isActive: true,
+  },
+  {
+    id: "plan-small-onetime",
+    userId: "customer-2",
+    planType: "small",
+    billingType: "one-time",
+    deliveryFrequency: null,
+    isActive: true,
+  },
+  {
+    id: "plan-inactive",
+    userId: "customer-2",
+    planType: "medium",
+    billingType: "subscription",
+    deliveryFrequency: "bi-weekly",
+    isActive: false,
+  },
+];
 
-  orders: [
-    {
-      id: "order-1",
-      userId: "customer-1",
-      mealPlanId: "plan-small-weekly",
-      status: "delivered" as OrderStatus,
-      totalAmount: 3999, // $39.99
-      deliveryDate: new Date("2024-01-15"),
-    },
-    {
-      id: "order-2",
-      userId: "customer-1",
-      mealPlanId: "plan-small-weekly",
-      status: "shipped" as OrderStatus,
-      totalAmount: 3999,
-      deliveryDate: new Date("2024-01-22"),
-    },
-    {
-      id: "order-3",
-      userId: "customer-2",
-      mealPlanId: "plan-small-onetime",
-      status: "pending" as OrderStatus,
-      totalAmount: 3999,
-      deliveryDate: new Date("2024-01-30"),
-    },
-    {
-      id: "order-4",
-      userId: "customer-1",
-      mealPlanId: "plan-medium-monthly",
-      status: "confirmed" as OrderStatus,
-      totalAmount: 5999, // $59.99
-      deliveryDate: new Date("2024-02-01"),
-    },
-  ],
-};
+const SEED_ORDERS: NewOrder[] = [
+  {
+    id: "order-1",
+    userId: "customer-1",
+    mealPlanId: "plan-small-weekly",
+    status: "delivered",
+    totalAmount: 3999, // $39.99
+    deliveryDate: new Date("2024-01-15"),
+  },
+  {
+    id: "order-2",
+    userId: "customer-1",
+    mealPlanId: "plan-small-weekly",
+    status: "shipped",
+    totalAmount: 3999,
+    deliveryDate: new Date("2024-01-22"),
+  },
+  {
+    id: "order-3",
+    userId: "customer-2",
+    mealPlanId: "plan-small-onetime",
+    status: "pending",
+    totalAmount: 3999,
+    deliveryDate: new Date("2024-01-30"),
+  },
+  {
+    id: "order-4",
+    userId: "customer-1",
+    mealPlanId: "plan-medium-monthly",
+    status: "confirmed",
+    totalAmount: 5999, // $59.99
+    deliveryDate: new Date("2024-02-01"),
+  },
+];
 
 export async function seedDatabase() {
   console.log("🌱 Starting database seed...");
@@ -261,7 +258,7 @@ export async function seedDatabase() {
 
       // 2. Seed permissions
       console.log("🔐 Creating permissions...");
-      for (const perm of SEED_DATA.permissions) {
+      for (const perm of SEED_PERMISSIONS) {
         await tx.insert(permission).values({
           ...perm,
           createdAt: new Date(),
@@ -270,12 +267,9 @@ export async function seedDatabase() {
 
       // 3. Seed users and create accounts with hashed passwords
       console.log("👤 Creating users...");
-      for (const userData of SEED_DATA.users) {
-        // Insert user — cast role string to the Role literal union since
-        // the seed array widens it to `string` by default.
+      for (const userData of SEED_USERS) {
         await tx.insert(user).values({
           ...userData,
-          role: userData.role as "customer" | "admin" | "super_admin",
           createdAt: new Date(),
           updatedAt: new Date(),
         });
@@ -294,11 +288,9 @@ export async function seedDatabase() {
 
       // 4. Seed meal plans
       console.log("🍽️ Creating meal plans...");
-      for (const planData of SEED_DATA.mealPlans) {
+      for (const planData of SEED_MEAL_PLANS) {
         await tx.insert(mealPlan).values({
           ...planData,
-          planType: planData.planType as "small" | "medium" | "large",
-          billingType: planData.billingType as "subscription" | "one-time",
           createdAt: new Date(),
           updatedAt: new Date(),
         });
@@ -306,16 +298,9 @@ export async function seedDatabase() {
 
       // 5. Seed orders
       console.log("📦 Creating orders...");
-      for (const orderData of SEED_DATA.orders) {
+      for (const orderData of SEED_ORDERS) {
         await tx.insert(order).values({
           ...orderData,
-          status: orderData.status as
-            | "pending"
-            | "confirmed"
-            | "preparing"
-            | "shipped"
-            | "delivered"
-            | "cancelled",
           createdAt: new Date(),
           updatedAt: new Date(),
         });
@@ -380,10 +365,10 @@ export async function seedDatabase() {
 
       console.log("✅ Database seeded successfully!");
       console.log("\n📊 Seeded data summary:");
-      console.log(`   Users: ${SEED_DATA.users.length}`);
-      console.log(`   Permissions: ${SEED_DATA.permissions.length}`);
-      console.log(`   Meal Plans: ${SEED_DATA.mealPlans.length}`);
-      console.log(`   Orders: ${SEED_DATA.orders.length}`);
+      console.log(`   Users: ${SEED_USERS.length}`);
+      console.log(`   Permissions: ${SEED_PERMISSIONS.length}`);
+      console.log(`   Meal Plans: ${SEED_MEAL_PLANS.length}`);
+      console.log(`   Orders: ${SEED_ORDERS.length}`);
       console.log(`   Audit Logs: ${auditLogs.length}`);
     });
 

@@ -34,7 +34,7 @@ export function BoxSizeSelection({
           <RadioGroup
             className="space-y-4"
             onValueChange={(v: Size) => onSizeChange(v)}
-            value={size ?? null}
+            value={size}
           >
             <div className="flex items-start gap-4 rounded-lg border p-4 transition-colors hover:bg-muted/50">
               <RadioGroupItem className="mt-1" id="small" value="small" />

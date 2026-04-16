@@ -9,157 +9,174 @@
  * (> 24 hours old) is ignored so users don't resume zombie sessions.
  * The completed snapshot is written by the orchestrator at submit
  * time and consumed by the success page.
+ *
+ * Schemas: persisted payloads are validated with Zod on read. A
+ * `safeParse` failure is treated identically to missing data — the
+ * key is cleared and `null` returned — so a corrupted snapshot
+ * cannot wedge the flow.
  */
 
-import type {
-  Cadence,
-  HouseholdSize,
-  OnboardingGoal,
-  OnboardingState,
-} from "@/components/onboarding/use-onboarding-state.ts";
+import { z } from "zod";
+import type { OnboardingState } from "@/components/onboarding/use-onboarding-state.ts";
 
 export const PROGRESS_STORAGE_KEY = "sk.onboarding.progress.v1";
 export const COMPLETED_STORAGE_KEY = "sk.onboarding.last-completed.v1";
+export const COMPLETED_ORDER_STORAGE_KEY =
+  "sk.onboarding.last-completed-order.v1";
 const SNAPSHOT_VERSION = 1;
+const COMPLETED_ORDER_SNAPSHOT_VERSION = 1;
 const STALE_AFTER_MS = 24 * 60 * 60 * 1000; // 24 hours
+const COMPLETED_ORDER_STALE_AFTER_MS = 2 * 60 * 60 * 1000; // 2 hours
 const TOTAL_STEPS = 8;
 
-interface StoredProgress {
-  savedAt: number;
-  state: OnboardingState;
-  version: number;
+export interface CompletedOrderMealSnapshot {
+  readonly id: string;
+  readonly name: string;
+  readonly quantity: number;
 }
 
-interface StoredCompletedOrder {
-  completedAt: number;
-  state: OnboardingState;
-  version: number;
+export interface CompletedOrderPricingSnapshot {
+  readonly discount: number;
+  readonly subtotal: number;
+  readonly total: number;
 }
 
-const GOALS = new Set<OnboardingGoal>([
+export interface CompletedOrderSnapshot {
+  readonly billingType: "one-time" | "subscription";
+  readonly boxSize: "small" | "medium";
+  readonly completedAt: number;
+  readonly deliveryFrequency?: "weekly" | "bi-weekly" | "monthly";
+  readonly estimatedDeliveryDateIso: string;
+  readonly id: string;
+  readonly meals: readonly CompletedOrderMealSnapshot[];
+  readonly pricing: CompletedOrderPricingSnapshot;
+}
+
+// ─── Zod schemas ─────────────────────────────────────────────────
+//
+// Shapes mirror `OnboardingState` (use-onboarding-state.ts) and
+// `CompletedOrderSnapshot` above. Optional fields use `.optional()`
+// and are dropped from the narrowed object via conditional-spread
+// so they comply with `exactOptionalPropertyTypes: true`.
+
+const PositiveInt = z.number().int().positive();
+const NonNegativeInt = z.number().int().nonnegative();
+
+const OnboardingGoalSchema = z.enum([
   "eat-better",
   "save-time",
   "stay-healthy",
   "exploring",
 ]);
-const HOUSEHOLDS = new Set<HouseholdSize>([
-  "solo",
-  "couple",
-  "family",
-  "big-family",
-]);
-const CADENCES = new Set<Cadence>([
-  "weekly",
-  "bi-weekly",
-  "monthly",
-  "one-time",
-]);
 
-function isObject(value: unknown): value is Record<string, unknown> {
-  return typeof value === "object" && value !== null;
-}
+const HouseholdSizeSchema = z.enum(["solo", "couple", "family", "big-family"]);
 
-function isStringArray(value: unknown): value is string[] {
-  return (
-    Array.isArray(value) && value.every((entry) => typeof entry === "string")
-  );
-}
+const CadenceSchema = z.enum(["weekly", "bi-weekly", "monthly", "one-time"]);
 
-function parseSelectedMeals(value: unknown): Record<string, number> | null {
-  if (!isObject(value)) {
-    return null;
-  }
+const SelectedMealsSchema = z.record(z.string(), PositiveInt);
 
-  const entries = Object.entries(value);
-  const selectedMeals: Record<string, number> = {};
+const OnboardingStateSchema = z.object({
+  step: z
+    .number()
+    .int()
+    .min(0)
+    .max(TOTAL_STEPS - 1),
+  goal: OnboardingGoalSchema.optional(),
+  diet: z.array(z.string()),
+  allergens: z.array(z.string()),
+  household: HouseholdSizeSchema.optional(),
+  cadence: CadenceSchema.optional(),
+  selectedMeals: SelectedMealsSchema,
+  firstDeliveryDate: z.string().optional(),
+  paymentComplete: z.boolean(),
+});
 
-  for (const [mealId, qty] of entries) {
-    if (
-      typeof mealId !== "string" ||
-      typeof qty !== "number" ||
-      !Number.isInteger(qty) ||
-      qty <= 0
-    ) {
-      return null;
-    }
-    selectedMeals[mealId] = qty;
-  }
+const PersistedStateSchema = z.object({
+  version: z.literal(SNAPSHOT_VERSION),
+  state: OnboardingStateSchema,
+  savedAt: z.number(),
+});
 
-  return selectedMeals;
-}
+const CompletedStateSchema = z.object({
+  version: z.literal(SNAPSHOT_VERSION),
+  state: OnboardingStateSchema,
+  completedAt: z.number(),
+});
 
-function parseOnboardingState(value: unknown): OnboardingState | null {
-  if (!isObject(value)) {
-    return null;
-  }
+const CompletedOrderMealSchema = z.object({
+  id: z.string().min(1),
+  name: z.string().min(1),
+  quantity: PositiveInt,
+});
 
-  const {
-    step,
-    goal,
-    diet,
-    allergens,
-    household,
-    cadence,
-    selectedMeals,
-    firstDeliveryDate,
-    paymentComplete,
-  } = value;
+const CompletedOrderPricingSchema = z.object({
+  discount: NonNegativeInt,
+  subtotal: NonNegativeInt,
+  total: NonNegativeInt,
+});
 
-  if (
-    typeof step !== "number" ||
-    !Number.isInteger(step) ||
-    step < 0 ||
-    step >= TOTAL_STEPS
-  ) {
-    return null;
-  }
-  if (
-    goal !== undefined &&
-    (typeof goal !== "string" || !GOALS.has(goal as OnboardingGoal))
-  ) {
-    return null;
-  }
-  if (!(isStringArray(diet) && isStringArray(allergens))) {
-    return null;
-  }
-  if (
-    household !== undefined &&
-    (typeof household !== "string" ||
-      !HOUSEHOLDS.has(household as HouseholdSize))
-  ) {
-    return null;
-  }
-  if (
-    cadence !== undefined &&
-    (typeof cadence !== "string" || !CADENCES.has(cadence as Cadence))
-  ) {
-    return null;
-  }
-  const parsedMeals = parseSelectedMeals(selectedMeals);
-  if (!parsedMeals || typeof paymentComplete !== "boolean") {
-    return null;
-  }
-  if (
-    firstDeliveryDate !== undefined &&
-    typeof firstDeliveryDate !== "string"
-  ) {
-    return null;
-  }
+const OrderDeliveryFrequencySchema = z.enum(["weekly", "bi-weekly", "monthly"]);
 
-  // exactOptionalPropertyTypes: true — optional keys must be absent rather than
-  // set to `undefined`. Spread each optional field conditionally so the key is
-  // only present in the object when the value is defined.
+const CompletedOrderSnapshotSchema = z.object({
+  billingType: z.enum(["one-time", "subscription"]),
+  boxSize: z.enum(["small", "medium"]),
+  completedAt: PositiveInt,
+  deliveryFrequency: OrderDeliveryFrequencySchema.optional(),
+  estimatedDeliveryDateIso: z
+    .string()
+    .refine((v) => Number.isFinite(new Date(v).getTime()), {
+      message: "Invalid ISO date",
+    }),
+  id: z.string().min(1),
+  meals: z.array(CompletedOrderMealSchema).min(1),
+  pricing: CompletedOrderPricingSchema,
+});
+
+const PersistedCompletedOrderSchema = z.object({
+  version: z.literal(COMPLETED_ORDER_SNAPSHOT_VERSION),
+  snapshot: CompletedOrderSnapshotSchema,
+});
+
+type ParsedOnboardingState = z.infer<typeof OnboardingStateSchema>;
+type ParsedCompletedOrderSnapshot = z.infer<
+  typeof CompletedOrderSnapshotSchema
+>;
+
+/**
+ * Zod narrows enum values fine, but arrays come back as `string[]`.
+ * Rebuild the state with the canonical branded/readonly shape from
+ * `OnboardingState`, honoring `exactOptionalPropertyTypes: true` by
+ * spreading only the defined optional keys.
+ */
+function toOnboardingState(parsed: ParsedOnboardingState): OnboardingState {
   return {
-    step,
-    diet: diet as OnboardingState["diet"],
-    allergens: allergens as OnboardingState["allergens"],
-    selectedMeals: parsedMeals,
-    paymentComplete,
-    ...(goal !== undefined && { goal: goal as OnboardingGoal }),
-    ...(household !== undefined && { household: household as HouseholdSize }),
-    ...(cadence !== undefined && { cadence: cadence as Cadence }),
-    ...(firstDeliveryDate !== undefined && {
-      firstDeliveryDate: firstDeliveryDate as string,
+    step: parsed.step,
+    diet: parsed.diet as OnboardingState["diet"],
+    allergens: parsed.allergens as OnboardingState["allergens"],
+    selectedMeals: parsed.selectedMeals as OnboardingState["selectedMeals"],
+    paymentComplete: parsed.paymentComplete,
+    ...(parsed.goal !== undefined && { goal: parsed.goal }),
+    ...(parsed.household !== undefined && { household: parsed.household }),
+    ...(parsed.cadence !== undefined && { cadence: parsed.cadence }),
+    ...(parsed.firstDeliveryDate !== undefined && {
+      firstDeliveryDate: parsed.firstDeliveryDate,
+    }),
+  };
+}
+
+function toCompletedOrderSnapshot(
+  parsed: ParsedCompletedOrderSnapshot
+): CompletedOrderSnapshot {
+  return {
+    billingType: parsed.billingType,
+    boxSize: parsed.boxSize,
+    completedAt: parsed.completedAt,
+    estimatedDeliveryDateIso: parsed.estimatedDeliveryDateIso,
+    id: parsed.id,
+    meals: parsed.meals,
+    pricing: parsed.pricing,
+    ...(parsed.deliveryFrequency !== undefined && {
+      deliveryFrequency: parsed.deliveryFrequency,
     }),
   };
 }
@@ -184,29 +201,17 @@ function loadProgress(): OnboardingState | null {
     if (!raw) {
       return null;
     }
-    const parsed = JSON.parse(raw) as unknown;
-    if (!isObject(parsed)) {
+    const result = PersistedStateSchema.safeParse(JSON.parse(raw));
+    if (!result.success) {
       safeRemoveStorageItem(PROGRESS_STORAGE_KEY);
       return null;
     }
-    const stored = parsed as Partial<StoredProgress>;
-    if (
-      stored.version !== SNAPSHOT_VERSION ||
-      typeof stored.savedAt !== "number"
-    ) {
+    const parsed = result.data;
+    if (Date.now() - parsed.savedAt > STALE_AFTER_MS) {
       safeRemoveStorageItem(PROGRESS_STORAGE_KEY);
       return null;
     }
-    if (Date.now() - stored.savedAt > STALE_AFTER_MS) {
-      safeRemoveStorageItem(PROGRESS_STORAGE_KEY);
-      return null;
-    }
-    const state = parseOnboardingState(stored.state);
-    if (!state) {
-      safeRemoveStorageItem(PROGRESS_STORAGE_KEY);
-      return null;
-    }
-    return state;
+    return toOnboardingState(parsed.state);
   } catch {
     safeRemoveStorageItem(PROGRESS_STORAGE_KEY);
     return null;
@@ -218,7 +223,7 @@ function saveProgress(state: OnboardingState): void {
     return;
   }
   try {
-    const payload: StoredProgress = {
+    const payload = {
       version: SNAPSHOT_VERSION,
       state,
       savedAt: Date.now(),
@@ -242,25 +247,17 @@ function loadCompleted(): OnboardingState | null {
     if (!raw) {
       return null;
     }
-    const parsed = JSON.parse(raw) as unknown;
-    if (!isObject(parsed)) {
+    const result = CompletedStateSchema.safeParse(JSON.parse(raw));
+    if (!result.success) {
       safeRemoveStorageItem(COMPLETED_STORAGE_KEY);
       return null;
     }
-    const stored = parsed as Partial<StoredCompletedOrder>;
-    if (
-      stored.version !== SNAPSHOT_VERSION ||
-      typeof stored.completedAt !== "number"
-    ) {
+    const parsed = result.data;
+    if (Date.now() - parsed.completedAt > STALE_AFTER_MS) {
       safeRemoveStorageItem(COMPLETED_STORAGE_KEY);
       return null;
     }
-    const state = parseOnboardingState(stored.state);
-    if (!state) {
-      safeRemoveStorageItem(COMPLETED_STORAGE_KEY);
-      return null;
-    }
-    return state;
+    return toOnboardingState(parsed.state);
   } catch {
     safeRemoveStorageItem(COMPLETED_STORAGE_KEY);
     return null;
@@ -272,7 +269,7 @@ function saveCompleted(state: OnboardingState): void {
     return;
   }
   try {
-    const payload: StoredCompletedOrder = {
+    const payload = {
       version: SNAPSHOT_VERSION,
       completedAt: Date.now(),
       state,
@@ -287,6 +284,54 @@ function clearCompleted(): void {
   safeRemoveStorageItem(COMPLETED_STORAGE_KEY);
 }
 
+function loadCompletedOrder(): CompletedOrderSnapshot | null {
+  if (typeof window === "undefined") {
+    return null;
+  }
+  try {
+    const raw = window.localStorage.getItem(COMPLETED_ORDER_STORAGE_KEY);
+    if (!raw) {
+      return null;
+    }
+    const result = PersistedCompletedOrderSchema.safeParse(JSON.parse(raw));
+    if (!result.success) {
+      safeRemoveStorageItem(COMPLETED_ORDER_STORAGE_KEY);
+      return null;
+    }
+    const snapshot = toCompletedOrderSnapshot(result.data.snapshot);
+    if (Date.now() - snapshot.completedAt > COMPLETED_ORDER_STALE_AFTER_MS) {
+      safeRemoveStorageItem(COMPLETED_ORDER_STORAGE_KEY);
+      return null;
+    }
+    return snapshot;
+  } catch {
+    safeRemoveStorageItem(COMPLETED_ORDER_STORAGE_KEY);
+    return null;
+  }
+}
+
+function saveCompletedOrder(snapshot: CompletedOrderSnapshot): void {
+  if (typeof window === "undefined") {
+    return;
+  }
+  try {
+    const payload = {
+      version: COMPLETED_ORDER_SNAPSHOT_VERSION,
+      snapshot,
+    };
+    window.localStorage.setItem(
+      COMPLETED_ORDER_STORAGE_KEY,
+      JSON.stringify(payload)
+    );
+  } catch {
+    /* storage full / disabled — degrade gracefully */
+  }
+}
+
+function clearCompletedOrder(): void {
+  safeRemoveStorageItem(COMPLETED_ORDER_STORAGE_KEY);
+}
+
 export const onboardingStorage = {
   loadProgress,
   saveProgress,
@@ -294,4 +339,7 @@ export const onboardingStorage = {
   loadCompleted,
   saveCompleted,
   clearCompleted,
+  loadCompletedOrder,
+  saveCompletedOrder,
+  clearCompletedOrder,
 };
