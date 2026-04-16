@@ -32,7 +32,7 @@ const createProtectedProcedure = (
   requiredRoles?: Role[]
 ) => {
   return t.procedure
-    .use(async ({ next, input }) => {
+    .use(({ next, input }) => {
       let sanitizedInput: unknown = input;
       if (input && typeof input === "object") {
         try {
@@ -47,7 +47,7 @@ const createProtectedProcedure = (
 
       return next({ input: sanitizedInput as typeof input });
     })
-    .use(async ({ ctx, next }) => {
+    .use(({ ctx, next }) => {
       if (ctx.currentUser.status !== "authenticated") {
         throw new TRPCError({
           code: "UNAUTHORIZED",
@@ -59,7 +59,7 @@ const createProtectedProcedure = (
       const { ipAddress, userAgent } = metadataOf(ctx);
 
       if (requiredRoles && !requiredRoles.includes(me.role)) {
-        void SimpleAuditService.logPermissionDenied(
+        SimpleAuditService.logPermissionDenied(
           me.id,
           "access_endpoint",
           "api",
@@ -67,7 +67,9 @@ const createProtectedProcedure = (
           `role:${requiredRoles.join("|")}`,
           ipAddress,
           userAgent
-        );
+        ).catch((err) => {
+          console.error("audit log failed:", err);
+        });
 
         throw new TRPCError({
           code: "FORBIDDEN",
@@ -76,7 +78,7 @@ const createProtectedProcedure = (
       }
 
       if (requiredPermission && !me.can(requiredPermission)) {
-        void SimpleAuditService.logPermissionDenied(
+        SimpleAuditService.logPermissionDenied(
           me.id,
           "access_endpoint",
           "api",
@@ -84,7 +86,9 @@ const createProtectedProcedure = (
           requiredPermission,
           ipAddress,
           userAgent
-        );
+        ).catch((err) => {
+          console.error("audit log failed:", err);
+        });
 
         throw new TRPCError({
           code: "FORBIDDEN",
@@ -108,18 +112,23 @@ const createProtectedProcedure = (
             isSuperAdmin: () => me.isSuperAdmin(),
           },
           audit: {
+            // `details` accepts any plain record — callers commonly pass their
+            // procedure input directly, which may contain `string | undefined`
+            // fields that don't fit the strict AuditDetailValue shape. We cast
+            // to AuditDetails at the boundary; SimpleAuditService serializes
+            // whatever's given.
             log: async (
               action: string,
               resource: string,
               resourceId?: string,
-              details?: AuditDetails
+              details?: Record<string, unknown>
             ) =>
               SimpleAuditService.log({
                 userId: me.id,
                 action,
                 resource,
                 resourceId: resourceId ?? null,
-                details: details ?? null,
+                details: (details as AuditDetails | undefined) ?? null,
                 ipAddress,
                 userAgent,
               }),
@@ -146,7 +155,7 @@ export const requirePermission = (permission: string) =>
   createProtectedProcedure(permission);
 
 export const createOwnershipProcedure = (_resourceUserIdField = "userId") => {
-  return t.procedure.use(async ({ ctx, next }) => {
+  return t.procedure.use(({ ctx, next }) => {
     if (ctx.currentUser.status !== "authenticated") {
       throw new TRPCError({ code: "UNAUTHORIZED" });
     }
@@ -159,12 +168,9 @@ export const createOwnershipProcedure = (_resourceUserIdField = "userId") => {
         ...ctx,
         me,
         user: me,
-        validateOwnership: async (
-          resourceUserId: string,
-          permission: string
-        ) => {
+        validateOwnership: (resourceUserId: string, permission: string) => {
           if (!me.can(permission, resourceUserId)) {
-            void SimpleAuditService.logPermissionDenied(
+            SimpleAuditService.logPermissionDenied(
               me.id,
               "access_resource",
               "owned_resource",
@@ -172,7 +178,9 @@ export const createOwnershipProcedure = (_resourceUserIdField = "userId") => {
               permission,
               ipAddress,
               userAgent
-            );
+            ).catch((err) => {
+              console.error("audit log failed:", err);
+            });
 
             throw new TRPCError({
               code: "FORBIDDEN",
@@ -198,9 +206,13 @@ export const auditedProcedure = (action: string, resource: string) => {
     const result = await next();
 
     if (result.ok) {
-      void ctx.audit.log(action, resource, undefined, {
-        input: sanitizeForAudit(input),
-      });
+      ctx.audit
+        .log(action, resource, undefined, {
+          input: sanitizeForAudit(input),
+        })
+        .catch((err) => {
+          console.error("audit log failed:", err);
+        });
     }
 
     return result;
@@ -223,7 +235,7 @@ function sanitizeForAudit(value: unknown): AuditDetails {
 const rateLimitMap = new Map<string, { count: number; resetTime: number }>();
 
 export const rateLimitedProcedure = (maxRequests = 100, windowMs = 60_000) => {
-  return protectedProcedure.use(async ({ ctx, next }) => {
+  return protectedProcedure.use(({ ctx, next }) => {
     const userId = ctx.me.id;
     const now = Date.now();
     const userLimit = rateLimitMap.get(userId);
@@ -232,13 +244,15 @@ export const rateLimitedProcedure = (maxRequests = 100, windowMs = 60_000) => {
     if (userLimit) {
       if (now < userLimit.resetTime) {
         if (userLimit.count >= maxRequests) {
-          void SimpleAuditService.logSecurityEvent(
+          SimpleAuditService.logSecurityEvent(
             "rate_limit_exceeded",
             userId,
             { limit: maxRequests, window: windowMs },
             ipAddress,
             userAgent
-          );
+          ).catch((err) => {
+            console.error("audit log failed:", err);
+          });
 
           throw new TRPCError({
             code: "TOO_MANY_REQUESTS",
